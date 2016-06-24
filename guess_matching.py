@@ -1,6 +1,7 @@
 from difflib import SequenceMatcher
 from collections import defaultdict
 from typing import Dict, List
+import itertools
 
 from guess_helper import load_file_lines
 
@@ -24,7 +25,7 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
   i_o, i_w, matchlength = matcher.find_longest_match(0, len(oov), 0, len(lexword))
   return (lexword, (i_o, i_w, matchlength))
 
-def guess_actual_oov(ind: (int, int), oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, str):
+def lookup_oov(ind: (int, int), oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, str):
   # Compare performance
   what_the_algo_said = None
   # Return
@@ -46,7 +47,7 @@ def guess_actual_oov(ind: (int, int), oov: str, matchers: Dict[str, SequenceMatc
   for (lexword, (i_o, i_w, matchlength)) in individual_bestmatches:
     if found_legal and (matchlength < 3 or matchlength < best_matchlength):
       continue
-    legal = guess_matching.is_legal_match(lexword, oov, i_w, i_o, matchlength)
+    legal = is_legal_match(lexword, oov, i_w, i_o, matchlength)
     if not found_legal or legal: # no legality regressions!
       if matchlength == best_matchlength: # no improvement? just add a candidate
         best_lexcandidates.append((lexword, i_w, i_o))

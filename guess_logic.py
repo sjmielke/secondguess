@@ -1,15 +1,15 @@
 from difflib import SequenceMatcher
 from typing import Dict, List
 import multiprocessing
-import itertools
 
 import guess_helper
 import guess_matching
+import guess_phrases
 
 def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [str]) -> ([str], [str]):
   guessable_nes = []
   guessable_oovs = []
-  for w in list(set(fulluniqlist)):
+  for w in set(fulluniqlist):
     # Filter out non-alphabetic tokens
     if not any(c.isalpha() for c in w):
       #print("{:<20} ~~> non-alpha token".format(w))
@@ -20,14 +20,15 @@ def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [
       guessable_oovs.append(w)
   return (guessable_nes, guessable_oovs)
 
-def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> ((int, int), (int, int, int)):
-  # Do it!
-  guessable_oovs = sorted(raw_guessable_oovs)
-  preproc = lambda p: ((p[0], len(guessable_oovs)), p[1], matchers, translations, cheat_guesses)
-  crunchabledata = map(preproc, zip(range(0, len(guessable_oovs)), guessable_oovs))
+def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: [str], matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> ((int, int), (int, int, int)):
+  # Sort
+  sorted_guessable_oovs = sorted(raw_guessable_oovs)
+  # Do
+  preproc = lambda p: ((p[0], len(sorted_guessable_oovs)), p[1], matchers, translations, cheat_guesses)
+  crunchabledata = map(preproc, enumerate(sorted_guessable_oovs))
   from contextlib import closing
   with closing(multiprocessing.Pool(processes = 4)) as pool:
-    all_results = pool.starmap(guess_actual_oov, crunchabledata)
+    all_results = pool.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
   
   # What came out?
   count_nocheat_noalg = 0
@@ -39,7 +40,7 @@ def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: str,
   
   edgecases = []
   
-  for (oov, (result, algo_eq_human)) in zip(guessable_oovs, all_results):
+  for (oov, (result, algo_eq_human)) in zip(sorted_guessable_oovs, all_results):
     oov_guesses[oov] = result
     if cheat_guesses[oov] == oov: # human didn't know
       if algo_eq_human:

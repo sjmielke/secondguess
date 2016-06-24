@@ -17,29 +17,9 @@ def dict_only(oov_original_list_file: str, oov_cheat_list_file: str, datadir: st
     for (oov, trans) in zip(oov_original_list, oov_cheat_list):
       print(trans if trans in all_translations else oov, file=outfile)
 
-def doit(oov_original_list_file: str, datadir: str, cheatfile: str):
-  # Load a bunch of things
-  oov_original_list = guess_helper.load_file_lines(datadir + oov_original_list_file)
-  (matchers, translations) = guess_matching.load_dictionary(datadir + "lexicon.norm")
-  nes = guess_helper.load_file_lines(datadir + "mudeval.unique_nes.r1") # apparently untokenized! sucks e.g. for Mosoni-Dunaig
-  cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(datadir + oov_original_list_file + ".trans_sw_uniq_" + cheatfile)))
-
-  # Start filling our guess dictionary!
-  oov_guesses = {}
-
-  (guessable_nes, guessable_oovs) = guess_logic.get_guessables_into(oov_guesses, oov_original_list, nes)
-  #print("{} distinct NEs and {} distinct OOVs to guess.\n".format(len(guessable_nes), len(guessable_oovs)))
-
-  # Guess NEs
-  all_ne_roots = guess_nes.guess_nes_into(oov_guesses, guessable_nes)
-
-  # Then do the actual OOV guessing, while counting,
-  # how often were we "better" than the human?
-  # (Schema: count_human_thirdeye)
-  ((c_nn, c_ny), (c_yn, c_yw, c_yc, c_yy)) = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, matchers, translations, cheat_guesses)
-
-  # Statistics
-  print("Comparing against the human in " + cheatfile)
+def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
+  # (Schema: count_human_algo)
+  ((c_nn, c_ny), (c_yn, c_yw, c_yc, c_yy)) = stats
   print("> {:<27} {:3} ({})".format("No human, no algo:", \
     c_nn, "neither knew a translation"))
   print("> {:<27} {:3} ({})".format("No human, but algo:", \
@@ -53,7 +33,45 @@ def doit(oov_original_list_file: str, datadir: str, cheatfile: str):
   print("> {:<27} {:3} ({})".format("Human = algo:", \
     c_yy, "found the human suggestion containing candidate and naturally chose it!"))
 
-  # Write our results in original order
+def load_data(oov_original_list_file: str, datadir: str):
+  # Load OOV list
+  oov_original_list = guess_helper.load_file_lines(datadir + oov_original_list_file)
+  # Load dictionary
+  (matchers, translations) = guess_matching.load_dictionary(datadir + "lexicon.norm")
+  # Load NE list
+  # -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
+  nes = list(guess_helper.load_file_lines(datadir + "mudeval.unique_nes.r1"))
+  # Load Morfessor splits
+  morfoutput = guess_helper.load_file_lines(datadir + oov_original_list_file + ".catmorf")
+  cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
+  catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
+  
+  return (oov_original_list, matchers, translations, nes, catmorfdict)
+
+def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: str):
+  # Load reference-independent things
+  (oov_original_list, matchers, translations, nes, catmorfdict) = load_data(oov_original_list_file, datadir)
+  
+  # Load cheat/reference
+  fullcheatfilename = datadir + oov_original_list_file + ".trans_sw_uniq_" + cheatfile
+  cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(fullcheatfilename)))
+
+  # Start filling our guess dictionary!
+  oov_guesses = {}
+
+  # Sort oovlist entries into NEs and actual OOVs
+  (guessable_nes, guessable_oovs) = guess_logic.get_guessables_into(oov_guesses, oov_original_list, nes)
+  print("{} distinct NEs and {} distinct OOVs to guess.".format(len(guessable_nes), len(guessable_oovs)))
+  
+  # Guess NEs
+  all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, guessable_nes)
+
+  # Then do the actual OOV guessing, while counting, how often were we "better" than the human
+  stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, matchers, translations, cheat_guesses)
+  print("Comparing against the human in " + cheatfile)
+  print_human_algo_statistics(stats)
+  
+  # Write our results in original order into result file
   with open(datadir + oov_original_list_file + ".trans_thirdeye_against_sw_uniq_" + cheatfile, 'w') as translist:
     for oov in oov_original_list:
       print(oov_guesses[oov], file=translist)
@@ -65,6 +83,6 @@ if __name__ == '__main__':
   #dict_only(oovfile, "mud.oovlist.trans_sw_uniq_human", datadir)
   #dict_only(oovfile, "mud.oovlist.trans_sw_uniq_reference", datadir)
 
-  for reference in ["human_dictonly", "human", "reference_dictonly", "reference"]:
-    doit(oovfile, datadir, reference)
+  for reference in ["human_dictonly" ]: #, "human", "reference_dictonly", "reference"]:
+    doit_with_reference(oovfile, datadir, reference)
   
