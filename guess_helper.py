@@ -6,3 +6,6 @@ def load_file_lines(path: str) -> [str]:
   with open(path) as f:
     ls = f.read().splitlines()
   return ls
+
+def mapfst(l):
+  return map(lambda x: x[0], l)

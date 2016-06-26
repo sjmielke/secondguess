@@ -25,12 +25,7 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
   i_o, i_w, matchlength = matcher.find_longest_match(0, len(oov), 0, len(lexword))
   return (lexword, (i_o, i_w, matchlength))
 
-def lookup_oov(ind: (int, int), oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, str):
-  # Compare performance
-  what_the_algo_said = None
-  # Return
-  result = None
-  
+def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]]) -> (bool, int, [(str, int, int)]):
   # Match search
   best_lexcandidates = []
   best_matchlength = 0
@@ -60,43 +55,4 @@ def lookup_oov(ind: (int, int), oov: str, matchers: Dict[str, SequenceMatcher], 
   #print("!")
   #print(" ")
   
-  # Okay! Matching done, now choose something nice!
-  if best_matchlength == 0:
-    """
-    print("({:3}/{:3}) {:<20} ~~> none found!         {}".format(
-      ind[0]+1, ind[1]+1,
-      oov,
-      '=' if cheat_guesses[oov] == oov else ' '))
-    """
-    what_the_algo_said = oov
-    result = oov
-  else:
-    candidates = sorted(best_lexcandidates, key=lambda tup: len(tup[0])) # prefer shorter lexwords
-    
-    # First, what would the algo itself say?
-    what_the_algo_said = min(sorted(translations[candidates[0][0]], key=len)) if found_legal else oov
-    (lexword, lexindex, oovindex) = candidates[0]
-    result = what_the_algo_said
-    
-    # Now, can I find the "correct" solution? Then replace old result with it!
-    foundcheat = False
-    for (lw, li, oi) in candidates:
-      if cheat_guesses[oov] in translations[lw]:
-        (lexword, lexindex, oovindex) = (lw, li, oi)
-        result = cheat_guesses[oov]
-        foundcheat = True
-        break
-    
-    """
-    # Output individual results
-    print("({:3}/{:3}) {:<36}{:<36} {} {} {}   {:<20}".format( # 20 + 4 * 4 = 36
-      ind[0]+1, ind[1]+1,
-      guess_helper.bold(oov    , oovindex, best_matchlength),
-      guess_helper.bold(lexword, lexindex, best_matchlength),
-      '✔' if found_legal else '✗',
-      '❗' if foundcheat else ' ',
-      '=' if what_the_algo_said == cheat_guesses[oov] else ' ',
-      result if result != oov else ""))
-    """
-  
-  return (result, what_the_algo_said == cheat_guesses[oov])
+  return (found_legal, best_matchlength, best_lexcandidates)
