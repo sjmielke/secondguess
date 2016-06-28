@@ -2,49 +2,70 @@ from typing import Dict, List
 
 import guess_helper
 
-def choose_translation(ind: (int, int), oov: str, found_legal: bool, matchlength: int, unsorted_candidates: [(str, int, int)], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, bool):
+def candidate_eval(cand: [(str, int, int, int, bool)]):
+  # each illegal result results in penalty
+  nomatch_penalty = sum(map(lambda w: 0 if w[4] else 1, cand))
+  # prefer shorter lexwords
+  lexlengths = sum(map(len, guess_helper.mapfst(cand)))
+  return (nomatch_penalty, lexlengths)
+
+def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, bool):
   # Compare performance
   what_the_algo_said = None
-  #Return
+  # Return
   result = None
   
-  # Okay! Matching done, now choose something nice!
-  if matchlength == 0:
-    #"""
-    print("({:3}/{:3}) {:<20} ~~> none found!         {}".format(
-      ind[0]+1, ind[1]+1,
-      oov,
-      '=' if cheat_guesses[oov] == oov else ' '))
-    #"""
-    what_the_algo_said = oov
-    result = oov
-  else:
-    candidates = sorted(unsorted_candidates, key=lambda tup: len(tup[0])) # prefer shorter lexwords
-    
-    # First, what would the algo itself say?
-    what_the_algo_said = min(sorted(translations[candidates[0][0]], key=len)) if found_legal else oov
-    (lexword, lexindex, oovindex) = candidates[0]
-    result = what_the_algo_said
-    
-    # Now, can I find the "correct" solution? Then replace old result with it!
-    foundcheat = False
-    for (lw, li, oi) in candidates:
-      if cheat_guesses[oov] in translations[lw]:
-        (lexword, lexindex, oovindex) = (lw, li, oi)
-        result = cheat_guesses[oov]
-        foundcheat = True
-        break
-    
-    #"""
-    # Output individual results
-    print("({:3}/{:3}) {:<36}{:<36} {} {} {}   {:<20}".format( # 20 + 4 * 4 = 36
-      ind[0]+1, ind[1]+1,
-      guess_helper.bold(oov    , oovindex, matchlength),
-      guess_helper.bold(lexword, lexindex, matchlength),
-      '✔' if found_legal else '✗',
-      '❗' if foundcheat else ' ',
-      '=' if what_the_algo_said == cheat_guesses[oov] else ' ',
-      result if result != oov else ""))
-    #"""
+  candidates = sorted(list(unsorted_candidates), key = candidate_eval)
   
-  return (result, what_the_algo_said == cheat_guesses[oov])
+  phrase = list(guess_helper.mapfst(candidates[0]))
+  fullphrase = "".join(phrase)
+  
+  
+  # First, what would the algo itself say?
+  result_candidate = candidates[0] # translate "best" candidate
+  result_transwords = []
+  
+  algo_transwords = []
+  for (oov, lexword, _, _, _, legal) in result_candidate:
+    algo_transwords.append(min(translations[lexword], key=len) if legal else oov) # shortest translation, TODO sort while loading dict
+  result_transwords = algo_transwords
+  what_the_algo_said = " ".join(algo_transwords)
+  result = what_the_algo_said
+  
+  # Now, can I find the "correct" solution? Then replace old result with it!
+  foundcheat = False
+  cheatsolution = cheat_guesses[fullphrase].split()
+  if len(cheatsolution) == len(algo_transwords): # only if we have a chance
+    for candidate in candidates:
+      foundcheat = True
+      for ((_, lexword, _, _, _, _), cheatword) in zip(candidate, cheatsolution):
+        if not cheatword in translations[lexword]:
+          foundcheat = False
+          break
+      if foundcheat:
+        result_candidate = candidate
+        result_transwords = cheatsolution
+        result = cheat_guesses[fullphrase]
+        break
+  
+  #"""
+  # TODO prohibit inter-thread-foo
+  print("\n » {:<20} » {} {}".format(
+    " ".join(phrase),
+    '❗' if foundcheat else ' ',
+    '=' if what_the_algo_said == cheat_guesses[fullphrase] else ' '))
+  for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in zip(result_candidate, result_transwords):
+    if legal:
+      print("   {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
+        guess_helper.bold(oov    , oovindex, matchlength),
+        guess_helper.bold(lexword, lexindex, matchlength),
+        trans))
+    else:
+      print("   {:<36} ✗ {:<20} -> {:<20}".format(
+        guess_helper.bold(oov    , oovindex, matchlength),
+        "---",
+        oov))
+  #"""
+  
+  return (result, what_the_algo_said == cheat_guesses[fullphrase])
+

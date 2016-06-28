@@ -54,7 +54,7 @@ def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: st
   (oov_original_list, matchers, translations, nes, catmorfdict) = load_data(oov_original_list_file, datadir)
   
   # Load cheat/reference
-  fullcheatfilename = datadir + oov_original_list_file + ".trans_uniq_" + cheatfile
+  fullcheatfilename = datadir + oov_original_list_file + ".trans_" + cheatfile
   cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(fullcheatfilename)))
 
   # Start filling our guess dictionary!
@@ -67,13 +67,25 @@ def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: st
   # Guess NEs
   all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, guessable_nes)
 
+
+
+
+
+  #interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa"]
+  #guess_logic.guess_actual_oovs_into(oov_guesses, ["iszap"], matchers, translations, catmorfdict, cheat_guesses)
+  #exit(0)
+
+
+
+
+
   # Then do the actual OOV guessing, while counting, how often were we "better" than the human
   stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, matchers, translations, catmorfdict, cheat_guesses)
   print("Comparing against the human in " + cheatfile)
   print_human_algo_statistics(stats)
   
   # Write our results in original order into result file
-  with open(datadir + oov_original_list_file + ".trans_thirdeye_against_uniq_" + cheatfile, 'w') as translist:
+  with open(datadir + oov_original_list_file + ".trans_thirdeye_phrase_against_" + cheatfile, 'w') as translist:
     for oov in oov_original_list:
       print(oov_guesses[oov], file=translist)
 
@@ -84,6 +96,6 @@ if __name__ == '__main__':
   #dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
   #dict_only(oovfile, "mud.oovlist.trans_uniq_reference", datadir)
 
-  for reference in ["human_dictonly" ]: #, "human", "reference_dictonly", "reference"]:
+  for reference in ["sw_uniq_human_dictonly" ]: #, "sw_uniq_human", "sw_uniq_reference_dictonly", "sw_uniq_reference"]:
     doit_with_reference(oovfile, datadir, reference)
   

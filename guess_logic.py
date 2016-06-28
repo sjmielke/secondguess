@@ -1,9 +1,8 @@
 from difflib import SequenceMatcher
 from typing import Dict, List, Tuple
 import multiprocessing
+import itertools
 
-import guess_helper
-import guess_matching
 import guess_phrases
 
 def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [str]) -> ([str], [str]):
@@ -20,20 +19,19 @@ def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [
       guessable_oovs.append(w)
   return (guessable_nes, guessable_oovs)
 
-def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: [str], matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> ((int, int), (int, int, int)):
+def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List[str], matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> Tuple[Tuple[int, int], Tuple[int, int, int]]:
   # Sort
   sorted_guessable_oovs = sorted(raw_guessable_oovs)
   # Do
-  preproc = lambda p: ( (p[0], len(sorted_guessable_oovs)), # ind
-                        p[1], # oov
-                        matchers,
-                        translations,
-                        catmorfdict,
-                        cheat_guesses)
-  crunchabledata = map(preproc, enumerate(sorted_guessable_oovs))
+  preproc = lambda oov: ( oov,
+                          matchers,
+                          translations,
+                          catmorfdict,
+                          cheat_guesses)
+  crunchabledata = map(preproc, sorted_guessable_oovs)
   from contextlib import closing
-  with closing(multiprocessing.Pool(processes = 4)) as pool:
-    all_results = pool.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
+  #with closing(multiprocessing.Pool(processes = 4)) as pool:
+  all_results = itertools.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
   
   # What came out?
   count_nocheat_noalg = 0

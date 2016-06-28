@@ -25,7 +25,7 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
   i_o, i_w, matchlength = matcher.find_longest_match(0, len(oov), 0, len(lexword))
   return (lexword, (i_o, i_w, matchlength))
 
-def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]]) -> (bool, int, [(str, int, int)]):
+def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher]) -> [(str, str, int, int, int, bool)]:
   # Match search
   best_lexcandidates = []
   best_matchlength = 0
@@ -44,15 +44,15 @@ def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dic
       continue
     legal = is_legal_match(lexword, oov, i_w, i_o, matchlength)
     if not found_legal or legal: # no legality regressions!
-      if matchlength == best_matchlength: # no improvement? just add a candidate
-        best_lexcandidates.append((lexword, i_w, i_o))
-      elif (legal and not found_legal # we find our first legal match...
-          or matchlength >= best_matchlength): # ...or a better one, regardless of legality status
-        best_lexcandidates = [(lexword, i_w, i_o)]
+      if (legal and not found_legal # we find our first legal match...
+          or matchlength > best_matchlength): # ...or a better one, regardless of legality status
+        best_lexcandidates = [(oov, lexword, i_w, i_o, matchlength, legal)]
         best_matchlength = matchlength
+      elif matchlength == best_matchlength: # no improvement? just add a candidate
+        best_lexcandidates.append((oov, lexword, i_w, i_o, matchlength, legal))
     if legal:
       found_legal = True
   #print("!")
   #print(" ")
   
-  return (found_legal, best_matchlength, best_lexcandidates)
+  return best_lexcandidates
