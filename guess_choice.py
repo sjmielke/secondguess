@@ -50,18 +50,17 @@ def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, i
   
   #"""
   # TODO prohibit inter-thread-foo
-  print("\n » {:<20} » {} {}".format(
-    " ".join(phrase),
+  print(" » {} {}".format(
     '❗' if foundcheat else ' ',
     '=' if what_the_algo_said == cheat_guesses[fullphrase] else ' '))
   for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in zip(result_candidate, result_transwords):
     if legal:
-      print("   {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
+      print("     {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
         guess_helper.bold(oov    , oovindex, matchlength),
         guess_helper.bold(lexword, lexindex, matchlength),
         trans))
     else:
-      print("   {:<36} ✗ {:<20} -> {:<20}".format(
+      print("     {:<36} ✗ {:<20} -> {:<20}".format(
         guess_helper.bold(oov    , oovindex, matchlength),
         "---",
         oov))

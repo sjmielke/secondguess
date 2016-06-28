@@ -1,4 +1,6 @@
 import itertools
+import operator # mul
+from functools import reduce
 from difflib import SequenceMatcher
 from typing import Dict, List, Tuple
 
@@ -11,15 +13,17 @@ def gen_phrases(segments: [(str, str)]) -> [[str]]:
   for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
     #print("gen {}".format(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]))
     yield ("".join(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]])).split()
-    break
+    #break # only full
 
 def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> (str, bool):
   all_translations = []
+  print("\n")
   for phrase in gen_phrases(catmorfdict[oov]):
     candidatess = []
     for phrase_segment in phrase:
       lookedup = guess_matching.lookup_oov(phrase_segment, matchers)
       foundlegal = lookedup[0][5] if lookedup else True
+      # Defensiveness
       for item in lookedup:
         if item[5] != foundlegal:
           print("Violation!", flush=True)
@@ -27,21 +31,21 @@ def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], trans
       # If we didn't find anything, please don't blow up the result with crap!
       candidatess.append(lookedup if foundlegal else lookedup[:1])
     
-    print("\n")
-    for clist in candidatess:
-      print ("{} x ".format(len(clist)), end='', flush=True)
+    lengths = list(map(len, candidatess))
+    statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
+    print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
     
     all_candidates = itertools.product(*candidatess)
     
     all_translations.append(guess_choice.choose_full_phrase_translation(all_candidates, translations, cheat_guesses))
   
-  # Check if the correct one was in it
+  # Return ... first translation?
+  res = all_translations[0]
+  
+  # Or the correct one, if it was returned
   for (t, aeh) in all_translations:
     if t == cheat_guesses[oov]:
       res = (t, aeh)
-  
-  # Otherwise return ... first translation?
-  res = all_translations[0]
   
   print(" « {} {:<30}".format('=' if res[1] else ' ', res[0]))
   

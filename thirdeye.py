@@ -5,6 +5,8 @@ import guess_matching
 import guess_nes
 import guess_logic
 
+import argparse
+
 def dict_only(oov_original_list_file: str, oov_cheat_list_file: str, datadir: str):
   (_, translations) = guess_matching.load_dictionary(datadir + "lexicon.norm")
   oov_original_list = guess_helper.load_file_lines(datadir + oov_original_list_file)
@@ -34,29 +36,25 @@ def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
   print("> {:<27} {:3} ({})".format("Human = algo:", \
     c_yy, "found the human suggestion containing candidate and naturally chose it!"))
 
-def load_data(oov_original_list_file: str, datadir: str):
+def load_files(files):
   # Load OOV list
-  oov_original_list = guess_helper.load_file_lines(datadir + oov_original_list_file)
+  oov_original_list = guess_helper.load_file_lines(files.oovfile)
   # Load dictionary
-  (matchers, translations) = guess_matching.load_dictionary(datadir + "lexicon.norm")
+  (matchers, translations) = guess_matching.load_dictionary(files.lexfile)
   # Load NE list
   # -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
-  nes = list(guess_helper.load_file_lines(datadir + "mudeval.unique_nes.r1"))
+  nes = list(guess_helper.load_file_lines(files.nefile))
   # Load Morfessor splits
-  morfoutput = guess_helper.load_file_lines(datadir + oov_original_list_file + ".catmorf")
+  morfoutput = guess_helper.load_file_lines(files.morffile)
   cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
   catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
   
-  return (oov_original_list, matchers, translations, nes, catmorfdict)
-
-def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: str):
-  # Load reference-independent things
-  (oov_original_list, matchers, translations, nes, catmorfdict) = load_data(oov_original_list_file, datadir)
-  
   # Load cheat/reference
-  fullcheatfilename = datadir + oov_original_list_file + ".trans_" + cheatfile
-  cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(fullcheatfilename)))
+  cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(files.reffile)))
 
+  return (oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses)
+
+def doit(oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses):
   # Start filling our guess dictionary!
   oov_guesses = {}
 
@@ -71,9 +69,9 @@ def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: st
 
 
 
-  #interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa"]
-  #guess_logic.guess_actual_oovs_into(oov_guesses, ["iszap"], matchers, translations, catmorfdict, cheat_guesses)
-  #exit(0)
+  interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
+  guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
+  exit(0)
 
 
 
@@ -90,12 +88,16 @@ def doit_with_reference(oov_original_list_file: str, datadir: str, cheatfile: st
       print(oov_guesses[oov], file=translist)
 
 if __name__ == '__main__':
-  datadir = "/home/sjm/documents/ISI/pyguess/data/"
-  oovfile = "mud.oovlist"
-
+  parser = argparse.ArgumentParser(description='Guess OOVs.')
+  parser.add_argument('oovfile' , help='<- original OOV list')
+  parser.add_argument('morffile', help='<- morf-segmented/-categorized OOV list')
+  parser.add_argument('lexfile' , help='<- normalized lexicon')
+  parser.add_argument('nefile'  , help='<- NE list')
+  parser.add_argument('reffile' , help='<- cheating reference translation')
+  parser.add_argument('outfile' , help='-> output translation')
+  args = parser.parse_args()
+  
   #dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
   #dict_only(oovfile, "mud.oovlist.trans_uniq_reference", datadir)
 
-  for reference in ["sw_uniq_human_dictonly" ]: #, "sw_uniq_human", "sw_uniq_reference_dictonly", "sw_uniq_reference"]:
-    doit_with_reference(oovfile, datadir, reference)
-  
+  doit(*load_files(args))
