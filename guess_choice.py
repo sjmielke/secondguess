@@ -2,12 +2,15 @@ from typing import Dict, List
 
 import guess_helper
 
-def candidate_eval(cand: [(str, int, int, int, bool)]):
+def candidate_eval(cand: [(str, str, int, int, int, bool)]):
   # each illegal result results in penalty
-  nomatch_penalty = sum(map(lambda w: 0 if w[4] else 1, cand))
+  nomatch_penalty = sum(map(lambda w: 0 if w[5] else 1, cand))
+  # prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
+  coverage = sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
   # prefer shorter lexwords
-  lexlengths = sum(map(len, guess_helper.mapfst(cand)))
-  return (nomatch_penalty, lexlengths)
+  lexlengths = sum(map(lambda w: len(w[1]), cand))
+  # TODO this will have to be some sort of weighted combination!
+  return (nomatch_penalty, coverage, lexlengths)
 
 def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, bool):
   # Compare performance

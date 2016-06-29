@@ -13,7 +13,7 @@ def gen_phrases(segments: [(str, str)]) -> [[str]]:
   for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
     #print("gen {}".format(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]))
     yield ("".join(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]])).split()
-    #break # only full
+    # break # only full
 
 def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> (str, bool):
   all_translations = []
@@ -21,15 +21,7 @@ def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], trans
   for phrase in gen_phrases(catmorfdict[oov]):
     candidatess = []
     for phrase_segment in phrase:
-      lookedup = guess_matching.lookup_oov(phrase_segment, matchers)
-      foundlegal = lookedup[0][5] if lookedup else True
-      # Defensiveness
-      for item in lookedup:
-        if item[5] != foundlegal:
-          print("Violation!", flush=True)
-          exit(1)
-      # If we didn't find anything, please don't blow up the result with crap!
-      candidatess.append(lookedup if foundlegal else lookedup[:1])
+      candidatess.append(guess_matching.lookup_oov(phrase_segment, matchers))
     
     lengths = list(map(len, candidatess))
     statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))

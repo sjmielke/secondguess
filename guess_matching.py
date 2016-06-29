@@ -55,4 +55,8 @@ def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher]) -> [(str, str, in
   #print("!")
   #print(" ")
   
-  return best_lexcandidates
+  # If we didn't find anything legal, guess we just copy:
+  if not found_legal:
+    return [(oov, oov, -1, -1, len(oov), False)]
+  else:
+    return best_lexcandidates

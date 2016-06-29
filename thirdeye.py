@@ -20,20 +20,20 @@ def dict_only(oov_original_list_file: str, oov_cheat_list_file: str, datadir: st
       okay = all(map(lambda t: t in all_translations, trans.split()))
       print(trans if okay else oov, file=outfile)
 
-def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
+def print_human_algo_statistics(ref: str, stats: ((int, int), (int, int, int, int))):
   # (Schema: count_human_algo)
   ((c_nn, c_ny), (c_yn, c_yw, c_yc, c_yy)) = stats
-  print("> {:<27} {:3} ({})".format("No human, no algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "No human, no algo:", \
     c_nn, "neither knew a translation"))
-  print("> {:<27} {:3} ({})".format("No human, but algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "No human, but algo:", \
     c_ny, "we're either superhuman or translated stray NEs"))
-  print("> {:<27} {:3} ({})".format("Human, but no algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "Human, but no algo:", \
     c_yn, "didn't find any translation, but human did"))
-  print("> {:<27} {:3} ({})".format("Human, but wrong algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "Human, but wrong algo:", \
     c_yw, "didn't find the human translation containing lexicon entry, but found another"))
-  print("> {:<27} {:3} ({})".format("Human corrected algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "Human corrected algo:", \
     c_yc, "found the human suggestion containing lexicon entry, but wouldn't have chosen it"))
-  print("> {:<27} {:3} ({})".format("Human = algo:", \
+  print("{}> {:<27} {:3} ({})".format(ref, "Human = algo:", \
     c_yy, "found the human suggestion containing candidate and naturally chose it!"))
 
 def load_files(files):
@@ -54,7 +54,7 @@ def load_files(files):
 
   return (oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses)
 
-def doit(oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses):
+def doit(refname, outfile, oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses):
   # Start filling our guess dictionary!
   oov_guesses = {}
 
@@ -66,24 +66,17 @@ def doit(oov_original_list, matchers, translations, nes, catmorfdict, cheat_gues
   all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, guessable_nes)
 
 
-
-
-
-  interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
-  guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
-  exit(0)
-
-
-
+  #interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
+  #guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
+  #exit(0)
 
 
   # Then do the actual OOV guessing, while counting, how often were we "better" than the human
   stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, matchers, translations, catmorfdict, cheat_guesses)
-  print("Comparing against the human in " + cheatfile)
-  print_human_algo_statistics(stats)
+  print_human_algo_statistics(refname, stats)
   
   # Write our results in original order into result file
-  with open(datadir + oov_original_list_file + ".trans_thirdeye_phrase_against_" + cheatfile, 'w') as translist:
+  with open(outfile, 'w') as translist:
     for oov in oov_original_list:
       print(oov_guesses[oov], file=translist)
 
@@ -100,4 +93,4 @@ if __name__ == '__main__':
   #dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
   #dict_only(oovfile, "mud.oovlist.trans_uniq_reference", datadir)
 
-  doit(*load_files(args))
+  doit(args.reffile, args.outfile, *load_files(args))
