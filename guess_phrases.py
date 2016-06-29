@@ -1,5 +1,5 @@
 import itertools
-import operator # mul
+import operator # mul, itemgetter
 from functools import reduce
 from difflib import SequenceMatcher
 from typing import Dict, List, Tuple
@@ -31,11 +31,11 @@ def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], trans
     
     all_translations.append(guess_choice.choose_full_phrase_translation(all_candidates, translations, cheat_guesses))
   
-  # Return ... first translation?
-  res = all_translations[0]
+  # Return best translation!
+  res = min(all_translations, key = operator.itemgetter(1))[0:3:2] # get fst+trd
   
   # Or the correct one, if it was returned
-  for (t, aeh) in all_translations:
+  for (t, score, aeh) in all_translations:
     if t == cheat_guesses[oov]:
       res = (t, aeh)
   

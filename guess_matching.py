@@ -26,6 +26,14 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
   return (lexword, (i_o, i_w, matchlength))
 
 def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher]) -> [(str, str, int, int, int, bool)]:
+  # "static" caching variable
+  # 0:20:39 without it, 0:12:28 with it, 0:08:09 with 4fold pool from 13:34:04
+  if not hasattr(lookup_oov, "lookupdict"):
+     lookup_oov.lookupdict = {}
+  
+  if oov in lookup_oov.lookupdict:
+    return lookup_oov.lookupdict[oov]
+  
   # Match search
   best_lexcandidates = []
   best_matchlength = 0
@@ -57,6 +65,10 @@ def lookup_oov(oov: str, matchers: Dict[str, SequenceMatcher]) -> [(str, str, in
   
   # If we didn't find anything legal, guess we just copy:
   if not found_legal:
-    return [(oov, oov, -1, -1, len(oov), False)]
+    res = [(oov, oov, -1, -1, len(oov), False)]
   else:
-    return best_lexcandidates
+    res = best_lexcandidates
+  
+  lookup_oov.lookupdict[oov] = res
+  
+  return res

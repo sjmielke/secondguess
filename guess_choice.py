@@ -2,23 +2,28 @@ from typing import Dict, List
 
 import guess_helper
 
-def candidate_eval(cand: [(str, str, int, int, int, bool)]):
+import sys
+
+def score_phrase(cand: [(str, str, int, int, int, bool)]) -> float:
   # each illegal result results in penalty
   nomatch_penalty = sum(map(lambda w: 0 if w[5] else 1, cand))
   # prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
-  coverage = sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
+  coverage = -1.0 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
   # prefer shorter lexwords
   lexlengths = sum(map(lambda w: len(w[1]), cand))
-  # TODO this will have to be some sort of weighted combination!
-  return (nomatch_penalty, coverage, lexlengths)
+  # We want to minimize this!
+  score = float(sys.argv[7]) * nomatch_penalty +\
+          float(sys.argv[8]) * coverage +\
+          float(sys.argv[9]) * lexlengths
+  return score
 
-def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, bool):
+def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, float, bool):
   # Compare performance
   what_the_algo_said = None
   # Return
   result = None
   
-  candidates = sorted(list(unsorted_candidates), key = candidate_eval)
+  candidates = sorted(list(unsorted_candidates), key = score_phrase)
   
   phrase = list(guess_helper.mapfst(candidates[0]))
   fullphrase = "".join(phrase)
@@ -69,5 +74,5 @@ def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, i
         oov))
   #"""
   
-  return (result, what_the_algo_said == cheat_guesses[fullphrase])
+  return (result, score_phrase(result_candidate), what_the_algo_said == cheat_guesses[fullphrase])
 

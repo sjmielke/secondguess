@@ -30,8 +30,8 @@ def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List
                           cheat_guesses)
   crunchabledata = map(preproc, sorted_guessable_oovs)
   from contextlib import closing
-  #with closing(multiprocessing.Pool(processes = 4)) as pool:
-  all_results = itertools.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
+  with closing(multiprocessing.Pool(processes = 4)) as pool:
+    all_results = pool.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
   
   # What came out?
   count_nocheat_noalg = 0

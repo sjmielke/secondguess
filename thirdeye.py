@@ -66,7 +66,7 @@ def doit(refname, outfile, oov_original_list, matchers, translations, nes, catmo
   all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, guessable_nes)
 
 
-  #interesting_oovs = ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
+  #interesting_oovs = ["elöltött"] # ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
   #guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
   #exit(0)
 
@@ -88,6 +88,9 @@ if __name__ == '__main__':
   parser.add_argument('nefile'  , help='<- NE list')
   parser.add_argument('reffile' , help='<- cheating reference translation')
   parser.add_argument('outfile' , help='-> output translation')
+  parser.add_argument('weight1' , help='<-')
+  parser.add_argument('weight2' , help='<-')
+  parser.add_argument('weight3' , help='<-')
   args = parser.parse_args()
   
   #dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
