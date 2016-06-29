@@ -12,9 +12,9 @@ def score_phrase(cand: [(str, str, int, int, int, bool)]) -> float:
   # prefer shorter lexwords
   lexlengths = sum(map(lambda w: len(w[1]), cand))
   # We want to minimize this!
-  score = float(sys.argv[7]) * nomatch_penalty +\
-          float(sys.argv[8]) * coverage +\
-          float(sys.argv[9]) * lexlengths
+  score = float(sys.argv[-3]) * nomatch_penalty +\
+          float(sys.argv[-2]) * coverage +\
+          float(sys.argv[-1]) * lexlengths
   return score
 
 def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, float, bool):

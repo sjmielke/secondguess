@@ -1,4 +1,5 @@
 import itertools
+from ast import literal_eval
 
 import guess_helper
 import guess_matching
@@ -6,6 +7,7 @@ import guess_nes
 import guess_logic
 
 import argparse
+import os
 
 def dict_only(oov_original_list_file: str, oov_cheat_list_file: str, datadir: str):
   (_, translations) = guess_matching.load_dictionary(datadir + "lexicon.norm")
@@ -54,7 +56,7 @@ def load_files(files):
 
   return (oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses)
 
-def doit(refname, outfile, oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses):
+def doit(refname, outfile, oov_original_list, all_matches, translations, nes, catmorfdict, cheat_guesses):
   # Start filling our guess dictionary!
   oov_guesses = {}
 
@@ -72,7 +74,7 @@ def doit(refname, outfile, oov_original_list, matchers, translations, nes, catmo
 
 
   # Then do the actual OOV guessing, while counting, how often were we "better" than the human
-  stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, matchers, translations, catmorfdict, cheat_guesses)
+  stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, all_matches, translations, catmorfdict, cheat_guesses)
   print_human_algo_statistics(refname, stats)
   
   # Write our results in original order into result file
@@ -82,18 +84,28 @@ def doit(refname, outfile, oov_original_list, matchers, translations, nes, catmo
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Guess OOVs.')
-  parser.add_argument('oovfile' , help='<- original OOV list')
-  parser.add_argument('morffile', help='<- morf-segmented/-categorized OOV list')
-  parser.add_argument('lexfile' , help='<- normalized lexicon')
-  parser.add_argument('nefile'  , help='<- NE list')
-  parser.add_argument('reffile' , help='<- cheating reference translation')
-  parser.add_argument('outfile' , help='-> output translation')
-  parser.add_argument('weight1' , help='<-')
-  parser.add_argument('weight2' , help='<-')
-  parser.add_argument('weight3' , help='<-')
+  parser.add_argument('oovfile'   , help='<- original OOV list')
+  parser.add_argument('morffile'  , help='<- morf-segmented/-categorized OOV list')
+  parser.add_argument('lexfile'   , help='<- normalized lexicon')
+  parser.add_argument('nefile'    , help='<- NE list')
+  parser.add_argument('reffile'   , help='<- cheating reference translation')
+  parser.add_argument('matchfile' , help='<> all morphcombination matches')
+  parser.add_argument('outfile'   , help='-> output translation')
+  parser.add_argument('weight1'   , help='<-')
+  parser.add_argument('weight2'   , help='<-')
+  parser.add_argument('weight3'   , help='<-')
   args = parser.parse_args()
   
   #dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
   #dict_only(oovfile, "mud.oovlist.trans_uniq_reference", datadir)
 
-  doit(args.reffile, args.outfile, *load_files(args))
+  (oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses) = load_files(args)
+  
+  if not os.path.isfile(args.matchfile):
+    with open(args.matchfile, 'w') as lookupdict:
+      print(str(guess_logic.lookup_morf_combinations(catmorfdict, matchers)), file=lookupdict)
+  
+  with open(args.matchfile) as f:
+    all_matches = literal_eval(f.read())
+  
+  doit(args.reffile, args.outfile, oov_original_list, all_matches, translations, nes, catmorfdict, cheat_guesses)

@@ -1,9 +1,21 @@
 from difflib import SequenceMatcher
 from typing import Dict, List, Tuple
+from contextlib import closing
 import multiprocessing
 import itertools
 
 import guess_phrases
+import guess_matching
+
+def lookup_morf_combinations(catmorfdict: Dict[str, List[Tuple[str, str]]], matchers: Dict[str, SequenceMatcher]) -> Dict[str, List[Tuple[str, str, int, int, int, bool]]]:
+  all_phrases = []
+  for oov, segs in catmorfdict.items():
+    all_phrases += itertools.chain(*guess_phrases.gen_phrases(segs))
+  # http://stackoverflow.com/questions/10784390/python-eliminate-duplicates-of-list-with-unhashable-elements-in-one-line
+  uniq_phrases = [k for k,v in itertools.groupby(sorted(all_phrases))]
+  print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())))
+  with closing(multiprocessing.Pool(processes = 4)) as pool:
+    return dict(zip(all_phrases, pool.starmap(guess_matching.lookup_oov, zip(all_phrases, itertools.repeat(matchers)))))
 
 def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [str]) -> ([str], [str]):
   guessable_nes = []
@@ -19,19 +31,17 @@ def get_guessables_into(guesses: Dict[str, str], fulluniqlist: [str], ne_list: [
       guessable_oovs.append(w)
   return (guessable_nes, guessable_oovs)
 
-def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List[str], matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> Tuple[Tuple[int, int], Tuple[int, int, int]]:
+def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List[str], all_matches: Dict[str, List[Tuple[str, str, int, int, int, bool]]], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> Tuple[Tuple[int, int], Tuple[int, int, int]]:
   # Sort
   sorted_guessable_oovs = sorted(raw_guessable_oovs)
   # Do
   preproc = lambda oov: ( oov,
-                          matchers,
+                          all_matches,
                           translations,
                           catmorfdict,
                           cheat_guesses)
-  crunchabledata = map(preproc, sorted_guessable_oovs)
-  from contextlib import closing
-  with closing(multiprocessing.Pool(processes = 4)) as pool:
-    all_results = pool.starmap(guess_phrases.phraseguess_actual_oov, crunchabledata)
+  #with closing(multiprocessing.Pool(processes = 4)) as pool:
+  all_results = itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs))
   
   # What came out?
   count_nocheat_noalg = 0

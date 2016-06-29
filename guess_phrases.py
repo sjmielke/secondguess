@@ -15,13 +15,13 @@ def gen_phrases(segments: [(str, str)]) -> [[str]]:
     yield ("".join(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]])).split()
     # break # only full
 
-def phraseguess_actual_oov(oov: str, matchers: Dict[str, SequenceMatcher], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> (str, bool):
+def phraseguess_actual_oov(oov: str, all_matches: Dict[str, List[Tuple[str, str, int, int, int, bool]]], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> (str, bool):
   all_translations = []
   print("\n")
   for phrase in gen_phrases(catmorfdict[oov]):
     candidatess = []
     for phrase_segment in phrase:
-      candidatess.append(guess_matching.lookup_oov(phrase_segment, matchers))
+      candidatess.append(all_matches[phrase_segment])
     
     lengths = list(map(len, candidatess))
     statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
