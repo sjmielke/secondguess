@@ -8,9 +8,9 @@ def score_phrase(cand: [(str, str, int, int, int, bool)]) -> float:
   # each illegal result results in penalty
   nomatch_penalty = sum(map(lambda w: 0 if w[5] else 1, cand))
   # prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
-  coverage = -1.0 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
-  # prefer shorter lexwords
-  lexlengths = sum(map(lambda w: len(w[1]), cand))
+  coverage = -0.1 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
+  # prefer shorter lexwords (0.05 is arbitrary)
+  lexlengths = 0.05 * sum(map(lambda w: len(w[1]), cand))
   # We want to minimize this!
   score = float(sys.argv[-3]) * nomatch_penalty +\
           float(sys.argv[-2]) * coverage +\
