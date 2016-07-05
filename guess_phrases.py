@@ -2,7 +2,6 @@ import itertools
 import operator # mul, itemgetter
 from functools import reduce
 from difflib import SequenceMatcher
-from typing import Dict, List, Tuple
 
 from guess_helper import mapfst
 import guess_matching
@@ -15,7 +14,7 @@ def gen_phrases(segments: [(str, str)]) -> [[str]]:
     yield ("".join(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]])).split()
     # break # only full
 
-def phraseguess_actual_oov(oov: str, all_matches: Dict[str, List[Tuple[str, str, int, int, int, bool]]], translations: Dict[str, List[str]], catmorfdict: Dict[str, List[Tuple[str, str]]], cheat_guesses: Dict[str, str]) -> (str, float, bool):
+def phraseguess_actual_oov(oov: str, all_matches: "Dict[str: [CandidateWord]]", translations: "Dict[str: [str]]", catmorfdict: "Dict[str: [(str, str)]]", cheat_guesses: "Dict[str: str]") -> (str, float, bool):
   all_translations = []
   print("\n")
   for phrase in gen_phrases(catmorfdict[oov]):

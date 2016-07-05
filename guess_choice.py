@@ -1,27 +1,30 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, NamedTuple
 
 import guess_helper
 
 import sys
 
-def score_phrase(cand: [(str, str, int, int, int, bool)]) -> float:
+def score_phrase(cand: "[CandidateWord]") -> float:
+  print(cand)
   # each illegal result results in penalty
-  nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w[5] else 1, cand))
+  nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w.islegal else 1, cand))
   # prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
-  coverage = 0.15 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
+  coverage = 0.15 * sum(map(lambda w: w.matchlength, cand)) / sum(map(lambda w: len(w.oov), cand))
   # prefer shorter lexwords (0.05 is arbitrary)
-  lexlengths_penalty = 0.02 * sum(map(lambda w: len(w[1]), cand))
+  lexlengths_penalty = 0.02 * sum(map(lambda w: len(w.lexword), cand))
   # We want to minimize this!
   scores = (float(sys.argv[-3]) * -1 * nomatch_penalty,
             float(sys.argv[-2]) *      coverage,
             float(sys.argv[-1]) * -1 * lexlengths_penalty)
   return scores
 
-def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, Tuple[float], bool):
+def choose_full_phrase_translation(unsorted_candidates: "[[CandidateWord]]", translations: "Dict[str: [str]]", cheat_guesses: "Dict[str: str]") -> (str, "Tuple[float]", bool):
   # Compare performance
   what_the_algo_said = None
   # Return
   result = None
+  
+  # Now, first we have to evaluate the candidates into translation candidates!
   
   candidates = sorted(list(unsorted_candidates), key = score_phrase, reverse = True)
   
