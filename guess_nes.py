@@ -1,14 +1,12 @@
-from typing import Dict, Set, List, Tuple
-
 from guess_helper import mapfst
 
-def desuffixize_ne(ne: str, catmorfdict: Dict[str, List[Tuple[str, str]]]) -> str:
+def desuffixize_ne(ne: str, catmorfdict: "{str: [(str, str)]}") -> str:
 	# We only want to cut away prefixes and suffixes, no infixes!
 	stm_indices = [i for i, (morph, cat) in enumerate(catmorfdict[ne]) if cat == 'STM']
 	return "".join(mapfst(catmorfdict[ne][stm_indices[0] : stm_indices[-1]+1]))
 
 # Mutates the `guesses` dict and returns all NE roots
-def guess_nes_into(guesses: Dict[str, str], catmorfdict: Dict[str, List[Tuple[str, str]]], nes: [str]) -> Set[str]:
+def guess_nes_into(guesses: "{str: str}", catmorfdict: "{str: [(str, str)]}", nes: "[str]") -> "Set[str]":
 	# First desuffixize/group -> guess all NEs
 	all_ne_roots = set()
 	for ne_suf in sorted(nes):

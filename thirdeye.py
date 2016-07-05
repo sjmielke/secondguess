@@ -1,10 +1,11 @@
 import itertools
-from ast import literal_eval
 
 import guess_helper
 import guess_matching
 import guess_nes
 import guess_logic
+
+from guess_matching import CandidateWord # to deserialize!
 
 import argparse
 import os
@@ -106,6 +107,6 @@ if __name__ == '__main__':
 			print(str(guess_logic.lookup_morf_combinations(catmorfdict, matchers)), file=lookupdict)
 	
 	with open(args.matchfile) as f:
-		all_matches = literal_eval(f.read())
+		all_matches = eval(f.read())
 	
 	doit(args.reffile, args.outfile, oov_original_list, all_matches, translations, nes, catmorfdict, cheat_guesses)

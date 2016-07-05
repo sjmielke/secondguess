@@ -1,11 +1,8 @@
-from typing import Dict, List, Tuple, NamedTuple
-
 import guess_helper
 
 import sys
 
 def score_phrase(cand: "[CandidateWord]") -> float:
-	print(cand)
 	# each illegal result results in penalty
 	nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w.islegal else 1, cand))
 	# prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
@@ -18,7 +15,7 @@ def score_phrase(cand: "[CandidateWord]") -> float:
 	          float(sys.argv[-1]) * -1 * lexlengths_penalty)
 	return scores
 
-def choose_full_phrase_translation(unsorted_candidates: "[[CandidateWord]]", translations: "Dict[str: [str]]", cheat_guesses: "Dict[str: str]") -> (str, "Tuple[float]", bool):
+def choose_full_phrase_translation(unsorted_candidates: "[[CandidateWord]]", translations: "{str: [str]}", cheat_guesses: "{str: str}") -> (str, "Tuple[float]", bool):
 	# Compare performance
 	what_the_algo_said = None
 	# Return
@@ -50,7 +47,7 @@ def choose_full_phrase_translation(unsorted_candidates: "[[CandidateWord]]", tra
 		for candidate in candidates:
 			foundcheat = True
 			for ((_, lexword, _, _, _, _), cheatword) in zip(candidate, cheatsolution):
-				if not cheatword in translations[lexword]:
+				if cheatword not in translations[lexword]:
 					foundcheat = False
 					break
 			if foundcheat:
