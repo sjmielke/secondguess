@@ -41,7 +41,8 @@ def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List
                           catmorfdict,
                           cheat_guesses)
   #with closing(multiprocessing.Pool(processes = 4)) as pool:
-  all_results = itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs))
+  guess_results = list(itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
+  all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][1]), reverse = True)
   
   # What came out?
   count_nocheat_noalg = 0
@@ -51,16 +52,13 @@ def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List
   count_yescheat_correctedalg = 0
   count_yescheat_yesalg = 0
   
-  edgecases = []
-  
-  for (oov, (result, algo_eq_human)) in zip(sorted_guessable_oovs, all_results):
+  for (oov, (result, scores, algo_eq_human)) in all_results:
     oov_guesses[oov] = result
     if cheat_guesses[oov] == oov: # human didn't know
       if algo_eq_human:
         count_nocheat_noalg += 1
       else:
         count_nocheat_yesalg += 1
-        edgecases.append(oov)
     else: # human knew a translation
       if result == oov:
         count_yescheat_noalg += 1
@@ -71,7 +69,16 @@ def guess_actual_oovs_into(oov_guesses: Dict[str, str], raw_guessable_oovs: List
       else:
         count_yescheat_yesalg += 1
   
-  #for oov in edgecases:
-  #  print("{} -> {} (result) / {} (human)".format(oov, oov_guesses[oov], cheat_guesses[oov]))
+  for (oov, (result, scores, algo_eq_human)) in all_results[0:20] + [("[...]", ("[...]", [], False))] + all_results[-20:]:
+    print("{:>20} -> {:<20}".format(oov, result), end='')
+    for s in scores:
+      print(" {:6.3f}".format(s), end='')
+    if algo_eq_human:
+      print(" (and correct!)", end='')
+    print("")
+  
+  with open("/tmp/scores", 'w') as o:
+    for (oov, (result, scores, algo_eq_human)) in all_results:
+      print("{}\t{}\t{}\t{}".format(*scores, 0.2 if algo_eq_human else -0.1), file = o)
   
   return ((count_nocheat_noalg, count_nocheat_yesalg), (count_yescheat_noalg, count_yescheat_wrongalg, count_yescheat_correctedalg, count_yescheat_yesalg))

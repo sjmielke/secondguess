@@ -1,6 +1,6 @@
 cd /home/nlg-05/sjm_445/pyguess/
 
-for w1 in $(seq 0.0 0.01 1.0); do
+for w1 in $(seq 0.0 0.05 1.0); do
   echo "cd /home/nlg-05/sjm_445/pyguess/;source /usr/usc/python/3.5.1/setup.sh;w1=${w1};w2=${w2};" > _r_${w1}.sh
   echo "for w2 in \$(seq 0.0 0.05 1.0); do" >> _r_${w1}.sh
   echo "  for w3 in \$(seq 0.0 0.05 1.0); do" >> _r_${w1}.sh

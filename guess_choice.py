@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import guess_helper
 
@@ -6,24 +6,24 @@ import sys
 
 def score_phrase(cand: [(str, str, int, int, int, bool)]) -> float:
   # each illegal result results in penalty
-  nomatch_penalty = sum(map(lambda w: 0 if w[5] else 1, cand))
+  nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w[5] else 1, cand))
   # prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
-  coverage = -0.1 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
+  coverage = 0.15 * sum(map(lambda w: w[4], cand)) / sum(map(lambda w: len(w[0]), cand))
   # prefer shorter lexwords (0.05 is arbitrary)
-  lexlengths = 0.05 * sum(map(lambda w: len(w[1]), cand))
+  lexlengths_penalty = 0.02 * sum(map(lambda w: len(w[1]), cand))
   # We want to minimize this!
-  score = float(sys.argv[-3]) * nomatch_penalty +\
-          float(sys.argv[-2]) * coverage +\
-          float(sys.argv[-1]) * lexlengths
-  return score
+  scores = (float(sys.argv[-3]) * -1 * nomatch_penalty,
+            float(sys.argv[-2]) *      coverage,
+            float(sys.argv[-1]) * -1 * lexlengths_penalty)
+  return scores
 
-def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, float, bool):
+def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, int, bool)]], translations: Dict[str, List[str]], cheat_guesses: Dict[str, str]) -> (str, Tuple[float], bool):
   # Compare performance
   what_the_algo_said = None
   # Return
   result = None
   
-  candidates = sorted(list(unsorted_candidates), key = score_phrase)
+  candidates = sorted(list(unsorted_candidates), key = score_phrase, reverse = True)
   
   phrase = list(guess_helper.mapfst(candidates[0]))
   fullphrase = "".join(phrase)
@@ -35,7 +35,7 @@ def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, i
   
   algo_transwords = []
   for (oov, lexword, _, _, _, legal) in result_candidate:
-    algo_transwords.append(min(translations[lexword], key=len) if legal else oov) # shortest translation, TODO sort while loading dict
+    algo_transwords.append(min(translations[lexword], key=len) if legal else oov)
   result_transwords = algo_transwords
   what_the_algo_said = " ".join(algo_transwords)
   result = what_the_algo_said
@@ -56,7 +56,7 @@ def choose_full_phrase_translation(unsorted_candidates: [[(str, str, int, int, i
         result = cheat_guesses[fullphrase]
         break
   
-  #"""
+  """
   # TODO prohibit inter-thread-foo
   print(" » {} {}".format(
     '❗' if foundcheat else ' ',
