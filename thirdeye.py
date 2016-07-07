@@ -1,4 +1,5 @@
 import itertools
+from collections import Counter
 
 import guess_helper
 import guess_matching
@@ -39,49 +40,6 @@ def print_human_algo_statistics(ref: str, stats: ((int, int), (int, int, int, in
 	print("{}> {:<27} {:3} ({})".format(ref, "Human = algo:", \
 		c_yy, "found the human suggestion containing candidate and naturally chose it!"))
 
-def load_files(files):
-	# Load OOV list
-	oov_original_list = guess_helper.load_file_lines(files.oovfile)
-	# Load dictionary
-	(matchers, translations) = guess_matching.load_dictionary(files.lexfile)
-	# Load NE list
-	# -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
-	nes = list(guess_helper.load_file_lines(files.nefile))
-	# Load Morfessor splits
-	morfoutput = guess_helper.load_file_lines(files.morffile)
-	cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
-	catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
-	
-	# Load cheat/reference
-	cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(files.reffile)))
-
-	return (oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses)
-
-def doit(refname, outfile, oov_original_list, all_matches, translations, nes, catmorfdict, cheat_guesses):
-	# Start filling our guess dictionary!
-	oov_guesses = {}
-
-	# Sort oovlist entries into NEs and actual OOVs
-	(guessable_nes, guessable_oovs) = guess_logic.get_guessables_into(oov_guesses, oov_original_list, nes)
-	print("{} distinct NEs and {} distinct OOVs to guess.".format(len(guessable_nes), len(guessable_oovs)))
-	
-	# Guess NEs
-	all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, guessable_nes)
-
-
-	#interesting_oovs = ["elöltött"] # ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
-	#guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
-	#exit(0)
-
-
-	# Then do the actual OOV guessing, while counting, how often were we "better" than the human
-	stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs, all_matches, translations, catmorfdict, cheat_guesses)
-	print_human_algo_statistics(refname, stats)
-	
-	# Write our results in original order into result file
-	with open(outfile, 'w') as translist:
-		for oov in oov_original_list:
-			print(oov_guesses[oov], file=translist)
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Guess OOVs.')
@@ -90,23 +48,82 @@ if __name__ == '__main__':
 	parser.add_argument('lexfile'   , help='<- normalized lexicon')
 	parser.add_argument('nefile'    , help='<- NE list')
 	parser.add_argument('reffile'   , help='<- cheating reference translation')
+	parser.add_argument('trainfile' , help='<- tokenized training target (English)')
+	parser.add_argument('leidosfile', help='<- counted leidos unigrams')
 	parser.add_argument('matchfile' , help='<> all morphcombination matches')
 	parser.add_argument('outfile'   , help='-> output translation')
 	parser.add_argument('weight1'   , help='<-')
 	parser.add_argument('weight2'   , help='<-')
 	parser.add_argument('weight3'   , help='<-')
+	parser.add_argument('weight4'   , help='<-')
+	parser.add_argument('weight5'   , help='<-')
+	parser.add_argument('weight6'   , help='<-')
 	args = parser.parse_args()
 	
 	#dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
 	#dict_only(oovfile, "mud.oovlist.trans_uniq_reference", datadir)
-
-	(oov_original_list, matchers, translations, nes, catmorfdict, cheat_guesses) = load_files(args)
 	
+	
+	#### LOADING FILES
+	
+	# Load OOV list
+	oov_original_list = guess_helper.load_file_lines(args.oovfile)
+	
+	# Load dictionary
+	(matchers, translations) = guess_matching.load_dictionary(args.lexfile)
+	
+	# Load NE list
+	# -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
+	nes = list(guess_helper.load_file_lines(args.nefile))
+	
+	# Load Morfessor splits
+	morfoutput = guess_helper.load_file_lines(args.morffile)
+	cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
+	catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
+	
+	# Load cheat/reference
+	cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(args.reffile)))
+	
+	# Load training data
+	train_target = Counter(" ".join(guess_helper.load_file_lines(args.trainfile)).split())
+	
+	# Load LEIDOS unigrams statistics
+	leidos_unigrams = Counter(dict([(l.split()[1], int(l.split()[0])) for l in guess_helper.load_file_lines(args.leidosfile) if len(l.split()) != 1]))
+	
+	# Load previously calculated matches
 	if not os.path.isfile(args.matchfile):
+		print("Have to refresh all matches with {} dictionary entries.".format(len(matchers)))
 		with open(args.matchfile, 'w') as lookupdict:
 			print(str(guess_logic.lookup_morf_combinations(catmorfdict, matchers)), file=lookupdict)
 	
 	with open(args.matchfile) as f:
 		all_matches = eval(f.read())
 	
-	doit(args.reffile, args.outfile, oov_original_list, all_matches, translations, nes, catmorfdict, cheat_guesses)
+	
+	#### ACTUAL GUESSING
+	
+	
+	# Start filling our guess dictionary!
+	oov_guesses = {}
+
+	# Sort oovlist entries into NEs and actual OOVs
+	(guessable_nes_counter, guessable_oovs_counter) = guess_logic.get_guessables_into(oov_guesses, oov_original_list, nes)
+	print("{} distinct NEs and {} distinct OOVs to guess.".format(len(guessable_nes_counter), len(guessable_oovs_counter)))
+	
+	# Guess NEs
+	all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, list(guessable_nes_counter))
+
+
+	#interesting_oovs = ["elöltött"] # ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
+	#guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
+	#exit(0)
+
+
+	# Then do the actual OOV guessing, while counting, how often were we "better" than the human
+	stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams)
+	print_human_algo_statistics(args.reffile, stats)
+	
+	# Write our results in original order into result file
+	with open(args.outfile, 'w') as translist:
+		for oov in oov_original_list:
+			print(oov_guesses[oov], file=translist)

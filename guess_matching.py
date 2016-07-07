@@ -12,13 +12,13 @@ def is_legal_match(w1: str, w2: str, i1: int, i2: int, l: int) -> bool:
 	i2_ = len(w1) - (i1 + l)
 	return l >= 3 and (l / len(w1) > 0.9 or (i1 == 0 or i2_ == 0) and i1 + i2_ <= 2 and l >= 5)
 
-def load_dictionary(path: str) -> ("Dict[str: SequenceMatcher]", "Dict[str: [str]]"):
+def load_dictionary(path: str) -> ("Dict[str: SequenceMatcher]", "Dict[str: Set[str]]"):
 	matchers = {}
-	translations = defaultdict(list)
+	translations = defaultdict(set)
 	for line in load_file_lines(path):
 		(w, _, t) = line.split('\t')
 		matchers[w] = SequenceMatcher(a=None, b=w, autojunk=False)
-		translations[w].append(t)
+		translations[w].add(t)
 	#print("{} distinct dictionary words to compare against loaded.".format(len(matchers.keys())))
 	return (matchers, translations)
 

@@ -1,4 +1,5 @@
 from contextlib import closing
+from collections import Counter
 import multiprocessing
 import itertools
 
@@ -15,29 +16,41 @@ def lookup_morf_combinations(catmorfdict: "{str: [(str, str)]}", matchers: "{str
 	with closing(multiprocessing.Pool(processes = 4)) as pool:
 		return dict(zip(all_phrases, pool.starmap(guess_matching.lookup_oov, zip(all_phrases, itertools.repeat(matchers)))))
 
-def get_guessables_into(guesses: "{str: str}", fulluniqlist: "[str]", ne_list: "[str]") -> "([str], [str])":
-	guessable_nes = []
-	guessable_oovs = []
-	for w in set(fulluniqlist):
+def get_guessables_into(guesses: "{str: str}", fulllist: "[str]", ne_list: "[str]") -> "(Counter[str], Counter[str])":
+	guessable_nes = Counter()
+	guessable_oovs = Counter()
+	for w in fulllist:
 		# Filter out non-alphabetic tokens
 		if not any(c.isalpha() for c in w):
 			#print("{:<20} ~~> non-alpha token".format(w))
 			guesses[w] = w
 		elif w in ne_list:
-			guessable_nes.append(w)
+			guessable_nes[w] += 1
 		else:
-			guessable_oovs.append(w)
+			guessable_oovs[w] += 1
 	return (guessable_nes, guessable_oovs)
 
-def guess_actual_oovs_into(oov_guesses: "{str: str}", raw_guessable_oovs: "[str]", all_matches: "{str: [CandidateWord]}", translations: "{str: [str]}", catmorfdict: "{str: [(str, str)]}", cheat_guesses: "{str: str}") -> ((int, int), (int, int, int)):
+def guess_actual_oovs_into(
+		oov_guesses: "{str: str}",
+		raw_guessable_oovs: "Counter[str]",
+		all_matches: "{str: [CandidateWord]}",
+		translations: "{str: Set[str]}",
+		catmorfdict: "{str: [(str, str)]}",
+		cheat_guesses: "{str: str}",
+		train_target: "Counter[str]",
+		leidos_unigrams: "Counter[str]"
+	) -> ((int, int), (int, int, int)):
 	# Sort
-	sorted_guessable_oovs = sorted(raw_guessable_oovs)
+	sorted_guessable_oovs = sorted(list(raw_guessable_oovs))
 	# Do
 	preproc = lambda oov: ( oov,
 	                        all_matches,
 	                        translations,
 	                        catmorfdict,
-	                        cheat_guesses)
+	                        cheat_guesses,
+	                        raw_guessable_oovs,
+	                        train_target,
+	                        leidos_unigrams)
 	#with closing(multiprocessing.Pool(processes = 4)) as pool:
 	guess_results = list(itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][1]), reverse = True)
@@ -70,7 +83,7 @@ def guess_actual_oovs_into(oov_guesses: "{str: str}", raw_guessable_oovs: "[str]
 	for (oov, (result, scores, algo_eq_human)) in all_results[0:20] + [("[...]", ("[...]", [], False))] + all_results[-20:]:
 		print("{:>20} -> {:<20}".format(oov, result), end='')
 		for s in scores:
-			print(" {:6.3f}".format(s), end='')
+			print(" {:10.7f}".format(s), end='')
 		if algo_eq_human:
 			print(" (and correct!)", end='')
 		print("")

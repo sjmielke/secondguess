@@ -17,7 +17,10 @@ def phraseguess_actual_oov(
 		translations: "{str: [str]}",
 		catmorfdict: "{str: [(str, str)]}",
 		cheat_guesses: "{str: str}",
-		debug_print: bool = False,
+		all_oovs: "Counter[str]",
+		train_target: "Counter[str]",
+		leidos_unigrams: "Counter[str]",
+		debug_print: bool = True,
 	) -> (str, float, bool):
 	
 	all_translations = []
@@ -33,9 +36,9 @@ def phraseguess_actual_oov(
 		if debug_print:
 			print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
 		
-		all_candidates = itertools.product(*candidatess)
+		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations.append(guess_choice.choose_full_phrase_translation(all_candidates, translations, cheat_guesses, debug_print))
+		all_translations.append(guess_choice.choose_full_phrase_translation(all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, debug_print))
 	
 	# Return best translation!
 	res = max(all_translations, key = lambda x: sum(x[1]))
