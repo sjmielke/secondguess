@@ -58,6 +58,8 @@ if __name__ == '__main__':
 	parser.add_argument('weight4'   , help='<-')
 	parser.add_argument('weight5'   , help='<-')
 	parser.add_argument('weight6'   , help='<-')
+	parser.add_argument('weight7'   , help='<-')
+	parser.add_argument('weight8'   , help='<-')
 	args = parser.parse_args()
 	
 	#dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
@@ -82,7 +84,13 @@ if __name__ == '__main__':
 	catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
 	
 	# Load cheat/reference
-	cheat_guesses = dict(zip(oov_original_list, guess_helper.load_file_lines(args.reffile)))
+	cheat_list = guess_helper.load_file_lines(args.reffile) if "nocheatref" not in args.reffile else ["THISVERYLONGANDOBSCURESTRINGSHOULDNOTBEINTHEDICTIONARY"] * len(oov_original_list)
+	cheat_guesses = dict(zip(oov_original_list, cheat_list))
+	
+	#for k,v in cheat_guesses.items():
+	#	if k =="قايتىشىنى":
+	#		print("yay")
+	#	print("{:<20} {:<20}".format(k, v))
 	
 	# Load training data
 	train_target = Counter(" ".join(guess_helper.load_file_lines(args.trainfile)).split())
@@ -92,7 +100,7 @@ if __name__ == '__main__':
 	
 	# Load previously calculated matches
 	if not os.path.isfile(args.matchfile):
-		print("Have to refresh all matches with {} dictionary entries.".format(len(matchers)))
+		print("Have to refresh all matches of {} OOVs with {} dictionary entries.".format(len(catmorfdict), len(matchers)))
 		with open(args.matchfile, 'w') as lookupdict:
 			print(str(guess_logic.lookup_morf_combinations(catmorfdict, matchers)), file=lookupdict)
 	
@@ -114,8 +122,8 @@ if __name__ == '__main__':
 	all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, list(guessable_nes_counter))
 
 
-	#interesting_oovs = ["elöltött"] # ["iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
-	#guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, matchers, translations, catmorfdict, cheat_guesses)
+	#interesting_oovs = Counter(["تەۋرەش"]) # "elöltött", "iszap", "vörösiszap", "gipsszel", "iszapkatasztrófa", "katasztrófának", "Kolontárnál", "Devecseren"]
+	#guess_logic.guess_actual_oovs_into(oov_guesses, interesting_oovs, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams)
 	#exit(0)
 
 

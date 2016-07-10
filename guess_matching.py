@@ -7,6 +7,8 @@ from guess_helper import load_file_lines
 
 CandidateWord = typing.NamedTuple('CandidateWord', [('oov', str), ('lexword', str), ('i_lex', int), ('i_oov', int), ('matchlength', int), ('islegal', bool)])
 
+
+
 # mono2affix_min5_match3
 def is_legal_match(w1: str, w2: str, i1: int, i2: int, l: int) -> bool:
 	i2_ = len(w1) - (i1 + l)

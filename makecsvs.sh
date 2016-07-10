@@ -8,6 +8,24 @@ setw3=0.80
 
 SCOREPATH="data/out/results"
 
+# 2 Params only
+
+( for w2 in $Wseq; do
+    echo -n ",$w2"
+  done
+  echo ""
+  for w1 in $Wseq; do
+    echo -n $w1
+    for w2 in $Wseq; do
+      echo -n ','
+      cat $SCOREPATH/score_${w1}_${w2} | tr -d '\n'
+      done
+    echo ""
+  done ) > $SCOREPATH/lengthparams.csv
+
+exit
+
+
 # Static scores
 
 ( for w2 in $Wseq; do

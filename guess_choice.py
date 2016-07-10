@@ -11,6 +11,7 @@ def print_dups(ss, prefix = ""):
 		print(prefix + "{} -> {}".format(len(list(s)), len(list(set(s)))))
 
 def choose_full_phrase_translation(
+		fulloov: str,
 		unsorted_candidates: "[[CandidateWord]]",
 		translations: "{str: Set[str]}",
 		cheat_guesses: "{str: str}",
@@ -57,28 +58,33 @@ def choose_full_phrase_translation(
 		
 		# reward new english words (justified OOVs) - more precise: words that contain new stuff!
 		training_count_penalty = min(map(lambda c: 0.000000005 * log(1 + train_target[c[1]]), cand))
-		# reward english in-domain words
-		# -> need domain-word-list
 		
 		# average LEIDOS frequency (surrogate for both in-domain-ness and general language model!) - only works for single words
 		leidos_frequencies = list(map(lambda trans: leidos_unigrams[trans], itertools.chain(*map(lambda c: c[1].split() if c[1].split() != [] else [c[1]], cand))))
 		leidos_frequency = 0.000000001 * sum(leidos_frequencies) / len(leidos_frequencies)
-		
-		# Combine the following two:?
+		# reward english in-domain words
+		# -> need domain-word-list
 		# reward more common english words
 		# -> need some huge unigram model
 		# reward high-LM and punish low-LM phrases
 		# -> need a good english LM
 		
+		# We want the english to be about as long as the input!
+		inp_length = sum(map(lambda pair: len(pair[0].oov), cand))
+		out_length = sum(map(lambda pair: len(pair[1]), cand))
+		# Data says english ~ 0.75 * uyghur
+		lengthratio = 0.0000005 * abs(log((0.45 + float(sys.argv[-1])) * (inp_length+0.00000001)/(out_length+0.00000001)))
+		
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		return (float(sys.argv[-6]) * -1 * nomatch_penalty,
-		        float(sys.argv[-5]) *      coverage,
-		        float(sys.argv[-4]) * -1 * lexlengths_penalty,
-		        float(sys.argv[-3]) *      part_count,
-		        float(sys.argv[-2]) * -1 * training_count_penalty,
-		        float(sys.argv[-1]) *      leidos_frequency,
+		return (float(sys.argv[-8]) * -1 * nomatch_penalty,
+		        float(sys.argv[-7]) *      coverage,
+		        float(sys.argv[-6]) * -1 * lexlengths_penalty,
+		        float(sys.argv[-5]) *      part_count,
+		        float(sys.argv[-4]) * -1 * training_count_penalty,
+		        float(sys.argv[-3]) *      leidos_frequency,
+		        float(sys.argv[-2]) * -1 * lengthratio,
 		        tiebreaker)
 	
 	#### ACTUAL CHOICE PROCESS
@@ -96,7 +102,6 @@ def choose_full_phrase_translation(
 			print("TiE!\n{}\n{}\n".format(*scored[0:2]))
 	besttranscand = scored[0]
 	phrase = list(map(lambda cw: cw.oov, guess_helper.mapfst(besttranscand)))
-	fullphrase = "".join(phrase)
 	
 	# First, what would the algo itself say?
 	what_the_algo_said = get_trans(besttranscand)
@@ -104,7 +109,7 @@ def choose_full_phrase_translation(
 	
 	# Now, can I find the "correct" solution? Then replace old result with it!
 	foundcheat = False
-	cheatsolution = cheat_guesses[fullphrase]
+	cheatsolution = cheat_guesses[fulloov]
 	for transcandidate in translated_unsorted_candidates:
 		if get_trans(transcandidate) == cheatsolution:
 			foundcheat = True
@@ -115,7 +120,7 @@ def choose_full_phrase_translation(
 		# TODO prohibit inter-thread-foo
 		print(" » {} {}".format(
 			'❗' if foundcheat else ' ',
-			'=' if what_the_algo_said == cheat_guesses[fullphrase] else ' '))
+			'=' if what_the_algo_said == cheat_guesses[fulloov] else ' '))
 		for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in result_transcandidate:
 			if legal:
 				print("     {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
@@ -130,4 +135,4 @@ def choose_full_phrase_translation(
 	
 	return (get_trans(result_transcandidate),
 	        score_phrase(result_transcandidate),
-	        what_the_algo_said == cheat_guesses[fullphrase])
+	        what_the_algo_said == cheat_guesses[fulloov])

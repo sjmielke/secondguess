@@ -1,15 +1,31 @@
 import itertools
-import operator # mul, itemgetter
+import operator # mul
+import sys # stderr
 from functools import reduce
 
 from guess_helper import mapfst
 import guess_choice
 
+def no_useless_suffix(s):
+	return s not in ["ماق", "ىش", "دى", "تى", "دۇ", "تۇ", "دۈ", "تۈ", "غان", "قان", "گەن", "كەن", "غۇز", "قۇز", "گۈز", "كۇز", "دۇر", "تۇر", "دۈر", "تۈر", "لار", "لەر", "لىر", "نى", "لىق", "لىك", "لۇق", "لۈك", "سى", "ى", "كى", "مۇ", "مۇ", "ئىدى"]
+
 def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	segs_texts = list(mapfst(segments))
+	
+	fulloov = "".join(segs_texts)
+	
+	for s in ["t.co/", "://", "@"]:
+		if s in fulloov:
+			return [[fulloov]]
+	if len(segs_texts) > 10:
+		print("»{}« was longer than 10 segments!".format(" + ".join(segs_texts)), file = sys.stderr)
+		return [[fulloov]]
+	
 	for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
-		yield ("".join(list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]])).split()
-		# break # only full
+		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]
+		phrase = ("".join(list(filter(no_useless_suffix, components)))).split()
+		if phrase != []:
+			yield phrase
 
 def phraseguess_actual_oov(
 		oov: str,
@@ -38,7 +54,11 @@ def phraseguess_actual_oov(
 		
 		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations.append(guess_choice.choose_full_phrase_translation(all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, debug_print))
+		all_translations.append(guess_choice.choose_full_phrase_translation(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, debug_print))
+	
+	# If everything was useless (i.e. we didn't generate any phrases), generate an empty candidate
+	if all_translations == []:
+		all_translations = [("", [0.0], cheat_guesses[oov] == "")]
 	
 	# Return best translation!
 	res = max(all_translations, key = lambda x: sum(x[1]))

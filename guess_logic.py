@@ -6,15 +6,18 @@ import itertools
 import guess_phrases
 import guess_matching
 
-def lookup_morf_combinations(catmorfdict: "{str: [(str, str)]}", matchers: "{str: SequenceMatcher}") -> "{str: [CandidateWord]}":
+def lookup_morf_combinations(catmorfdict: "{str: [(str, str)]}", matchers: "{str: SequenceMatcher}") -> "[(str, {str: SequenceMatcher})]":
 	all_phrases = []
 	for _, segs in catmorfdict.items():
 		all_phrases += itertools.chain(*guess_phrases.gen_phrases(segs))
+	
 	# http://stackoverflow.com/questions/10784390/python-eliminate-duplicates-of-list-with-unhashable-elements-in-one-line
 	uniq_phrases = [k for k,v in itertools.groupby(sorted(all_phrases))]
-	print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())))
-	with closing(multiprocessing.Pool(processes = 4)) as pool:
-		return dict(zip(all_phrases, pool.starmap(guess_matching.lookup_oov, zip(all_phrases, itertools.repeat(matchers)))))
+	print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())), flush = True)
+	
+	data = list(zip(uniq_phrases, itertools.repeat(matchers)))
+	with closing(multiprocessing.Pool(processes = 8)) as pool:
+		return dict(zip(uniq_phrases, pool.starmap(guess_matching.lookup_oov, data)))
 
 def get_guessables_into(guesses: "{str: str}", fulllist: "[str]", ne_list: "[str]") -> "(Counter[str], Counter[str])":
 	guessable_nes = Counter()
@@ -82,14 +85,11 @@ def guess_actual_oovs_into(
 	
 	for (oov, (result, scores, algo_eq_human)) in all_results[0:20] + [("[...]", ("[...]", [], False))] + all_results[-20:]:
 		print("{:>20} -> {:<20}".format(oov, result), end='')
+		print("{:10.7f} <- ".format(sum(scores)), end='')
 		for s in scores:
 			print(" {:10.7f}".format(s), end='')
 		if algo_eq_human:
 			print(" (and correct!)", end='')
 		print("")
-	
-	with open("/tmp/scores", 'w') as o:
-		for (oov, (result, scores, algo_eq_human)) in all_results:
-			print("{}\t{}\t{}\t{}".format(*scores, 0.2 if algo_eq_human else -0.1), file = o)
 	
 	return ((count_nocheat_noalg, count_nocheat_yesalg), (count_yescheat_noalg, count_yescheat_wrongalg, count_yescheat_correctedalg, count_yescheat_yesalg))
