@@ -20,41 +20,16 @@ python3 $PYGUESSDIR/tools/extract_tokens.py\
 	inputdata/${set}.sbmt.align\
 	data/${set}.sbmt.{tsv,oov_with_pipes}
 
-# Remove pipes
-tr -d '|' < data/${set}.sbmt.oov_with_pipes > data/${set}.sbmt.oov
+# Replace pipes with slashes to avoid flatcat category confusion
+tr '|' '/' < data/${set}.sbmt.oov_with_pipes > data/${set}.sbmt.oov
 
 # Morphsplit them
 # ... but only do that heavy work, if necessary.
 if [ ! -f data/${set}.sbmt.oov.catmorf ]; then
-	# Make sure no previous runs clutter (-f to ignore inexistence)
-	rm -f data/${set}.sbmt.oov.split.*
-	
-	# Chunk
-	split -a 3 -l 9995000 data/${set}.sbmt.oov data/${set}.sbmt.oov.split.
-	
-	# Submit morfing jobs
-	for f in data/${set}.sbmt.oov.split.*; do
-		echo "cd $DATADIR" >$f.sh
-		echo "morfessor -L staticdata/baseline-model.gz -T $f --output-format '{analysis} ' --output-newlines > $f.morfed_" >> $f.sh
-		echo "mv $f.morfed{_,}" >> $f.sh
-		qsub -q isi -l walltime=100:00:00 -N morf.${set}.${f##*.}.sh $f.sh
-		ALLFILES="$ALLFILES $f.morfed"
-	done
-	
-	# Wait for all jobs
-	for f in $(echo $ALLFILES); do
-		wait-for-file $f
-	done
-	
-	# Join and postprocess
-	cat data/${set}.sbmt.oov.split.*.morfed \
-		| sed 's/^ //;s/ $//' \
-		| sed 's/^ //;s/ $//' \
+	morfessor -L staticdata/baseline-model.gz -T data/${set}.sbmt.oov --output-format '{analysis} ' --output-newlines \
+		| sed 's/^ +//;s/ +$//' \
 		| sed 's/ /|STM /g;s/$/|STM/' \
 		> data/${set}.sbmt.oov.catmorf
-	
-	# Cleanup
-	rm data/${set}.sbmt.oov.split.*
 fi
 
 # Do slow and painful dictionary matching
