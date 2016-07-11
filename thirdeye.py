@@ -72,16 +72,14 @@ if __name__ == '__main__':
 	oov_original_list = guess_helper.load_file_lines(args.oovfile)
 	
 	# Load dictionary
-	(matchers, translations) = guess_matching.load_dictionary(args.lexfile)
+	(matchers, translations) = guess_helper.load_dictionary(args.lexfile)
 	
 	# Load NE list
 	# -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
 	nes = list(guess_helper.load_file_lines(args.nefile))
 	
 	# Load Morfessor splits
-	morfoutput = guess_helper.load_file_lines(args.morffile)
-	cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
-	catmorfdict = dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
+	catmorfdict = guess_helper.load_catmorfdict(oov_original_list, args.morffile)
 	
 	# Load cheat/reference
 	cheat_list = guess_helper.load_file_lines(args.reffile) if "nocheatref" not in args.reffile else ["THISVERYLONGANDOBSCURESTRINGSHOULDNOTBEINTHEDICTIONARY"] * len(oov_original_list)
@@ -99,11 +97,6 @@ if __name__ == '__main__':
 	leidos_unigrams = Counter(dict([(l.split()[1], int(l.split()[0])) for l in guess_helper.load_file_lines(args.leidosfile) if len(l.split()) != 1]))
 	
 	# Load previously calculated matches
-	if not os.path.isfile(args.matchfile):
-		print("Have to refresh all matches of {} OOVs with {} dictionary entries.".format(len(catmorfdict), len(matchers)))
-		with open(args.matchfile, 'w') as lookupdict:
-			print(str(guess_logic.lookup_morf_combinations(catmorfdict, matchers)), file=lookupdict)
-	
 	with open(args.matchfile) as f:
 		all_matches = eval(f.read())
 	

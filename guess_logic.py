@@ -1,23 +1,9 @@
-from contextlib import closing
 from collections import Counter
 import multiprocessing
 import itertools
 
 import guess_phrases
 import guess_matching
-
-def lookup_morf_combinations(catmorfdict: "{str: [(str, str)]}", matchers: "{str: SequenceMatcher}") -> "[(str, {str: SequenceMatcher})]":
-	all_phrases = []
-	for _, segs in catmorfdict.items():
-		all_phrases += itertools.chain(*guess_phrases.gen_phrases(segs))
-	
-	# http://stackoverflow.com/questions/10784390/python-eliminate-duplicates-of-list-with-unhashable-elements-in-one-line
-	uniq_phrases = [k for k,v in itertools.groupby(sorted(all_phrases))]
-	print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())), flush = True)
-	
-	data = list(zip(uniq_phrases, itertools.repeat(matchers)))
-	with closing(multiprocessing.Pool(processes = 8)) as pool:
-		return dict(zip(uniq_phrases, pool.starmap(guess_matching.lookup_oov, data)))
 
 def get_guessables_into(guesses: "{str: str}", fulllist: "[str]", ne_list: "[str]") -> "(Counter[str], Counter[str])":
 	guessable_nes = Counter()
@@ -54,7 +40,6 @@ def guess_actual_oovs_into(
 	                        raw_guessable_oovs,
 	                        train_target,
 	                        leidos_unigrams)
-	#with closing(multiprocessing.Pool(processes = 4)) as pool:
 	guess_results = list(itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][1]), reverse = True)
 	
