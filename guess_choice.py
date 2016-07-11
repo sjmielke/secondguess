@@ -95,11 +95,6 @@ def choose_full_phrase_translation(
 	print_dups(translated_unsorted_candidates)
 	# Then pick our favorite one!
 	scored = sorted(translated_unsorted_candidates, key = lambda p: sum(score_phrase(p)), reverse = True)
-	if len(scored) > 1 and sum(score_phrase(scored[0])) == sum(score_phrase(scored[1])):
-		if scored[0] == scored[1]:
-			print("WATTAFUK")
-		else:
-			print("TiE!\n{}\n{}\n".format(*scored[0:2]))
 	besttranscand = scored[0]
 	phrase = list(map(lambda cw: cw.oov, guess_helper.mapfst(besttranscand)))
 	

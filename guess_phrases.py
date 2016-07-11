@@ -16,10 +16,12 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	
 	for s in ["t.co/", "://", "@"]:
 		if s in fulloov:
-			return [[fulloov]]
+			yield [fulloov]
+			return
 	if len(segs_texts) > 10:
 		print("»{}« was longer than 10 segments!".format(" + ".join(segs_texts)), file = sys.stderr)
-		return [[fulloov]]
+		yield [fulloov]
+		return
 	
 	for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
 		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]

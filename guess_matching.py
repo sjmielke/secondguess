@@ -65,6 +65,7 @@ if __name__ == '__main__':
 	mode1 = subparsers.add_parser('mode1', help='Generate phrases and TODOs')
 	mode1.add_argument('oovfile'   , help='<- simple OOV list')
 	mode1.add_argument('morffile'  , help='<- morf-segmented/-categorized OOV list')
+	mode1.add_argument('batchsize' , type=int, help='batch size')
 	mode1.add_argument('matchfile' , help='-> matchfile prefix')
 	mode1.set_defaults(which='mode1')
 	
@@ -93,8 +94,7 @@ if __name__ == '__main__':
 		print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())), flush = True, file = sys.stderr)
 		
 		# Finally write TODOs in all files
-		batchsize = 50
-		batches = [uniq_phrases[i:i + batchsize] for i in range(0, len(uniq_phrases), batchsize)]
+		batches = [uniq_phrases[i:i + args.batchsize] for i in range(0, len(uniq_phrases), args.batchsize)]
 		for (i, batch) in enumerate(batches):
 			with open(args.matchfile + ".batch." + str(i + 1), 'w') as f: # files from 1 to len
 				print(batch, file = f)
@@ -105,6 +105,7 @@ if __name__ == '__main__':
 	elif args.which == 'mode2':
 		# Load matchers
 		(matchers, _) = guess_helper.load_dictionary(args.lexfile)
+		print("Matchers loaded.")
 		
 		with open(args.todofile) as f:
 			batch = eval(f.read())
