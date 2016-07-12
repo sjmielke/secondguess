@@ -59,7 +59,6 @@ if [ ! -f data/${set}.sbmt.oov.fullmorfmatches ]; then
 	for f in $(eval echo data/${set}.sbmt.oov.fullmorfmatches.batch.{1..$NOOFBATCHES}.done); do
 		wait-for-file $f
 	done
-
 	
 	# Now join!
 	python3 $PYGUESSDIR/guess_matching.py\
@@ -99,14 +98,14 @@ $PYGUESSDIR/tools/agile_tokenizer/lw_detokenize.pl < data/${set}.sbmt.guessed.to
 sed 's/ .*//' data/${set}.sbmt.oov.trans_thirdeye > data/${set}.sbmt.oov.trans_thirdeye_firstword
 
 python3 $PYGUESSDIR/tools/rejoin_oovs.py\
-        inputdata/${set}.sbmt.align\
-        data/${set}.sbmt.oov.trans_thirdeye_firstword\
-        data/${set}.sbmt.guessed_firstword.tok
+	inputdata/${set}.sbmt.align\
+	data/${set}.sbmt.oov.trans_thirdeye_firstword\
+	data/${set}.sbmt.guessed_firstword.tok
 
 $PYGUESSDIR/tools/agile_tokenizer/lw_detokenize.pl < data/${set}.sbmt.guessed_firstword.tok | /home/rcf-40/jonmay/projects/lorelei/dryrun/il3/firstcap.py > data/${set}.sbmt.guessed_firstword.detok
 
 
 # Prepare packages for upload
 for suffix in '' _firstword; do
-	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh data/${set}.sbmt.guessed${suffix}.detok inputdata/package/elisa.il3.package.y1r1.*/elisa.il3-eng.${set}.y1r1.*.xml.gz data/isi-sbmt-vanilla-guess${suffix}.il3-eng.${set}.y1r1.v1.xml.gz;
+	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh data/${set}.sbmt.guessed${suffix}.detok staticdata/package/elisa.il3-eng.${set}.y1r1.*.xml.gz data/isi-sbmt-vanilla-guess${suffix}.il3-eng.${set}.y1r1.v1.xml.gz;
 done
