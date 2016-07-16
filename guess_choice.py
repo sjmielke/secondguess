@@ -18,6 +18,7 @@ def choose_full_phrase_translation(
 		all_oovs: "Counter[str]",
 		train_target: "Counter[str]",
 		leidos_unigrams: "Counter[str]",
+		args: "argparse args",
 		debug_print: bool = False
 	) -> (str, "Tuple[float]", bool):
 	
@@ -48,8 +49,8 @@ def choose_full_phrase_translation(
 		nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w.islegal else 1, cws))
 		# prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
 		coverage = 0.15 * sum(map(lambda w: w.matchlength, cws)) / sum(map(lambda w: len(w.oov), cws))
-		# prefer shorter lexwords
-		lexlengths_penalty = 0.002 * sum(map(lambda w: len(w.lexword), cws))
+		# prefer less umatched lexword chars
+		lexrest_penalty = 0.02 * sum(map(lambda w: len(w.lexword) - w.matchlength, cws))
 		# reward hungarian subwords that also are OOVs
 		part_count = 0.001 * sum(map(lambda w: all_oovs[w.oov], cws))
 		
@@ -73,18 +74,21 @@ def choose_full_phrase_translation(
 		inp_length = sum(map(lambda pair: len(pair[0].oov), cand))
 		out_length = sum(map(lambda pair: len(pair[1]), cand))
 		# Data says english ~ 0.75 * uyghur
-		lengthratio = 0.0000005 * abs(log((0.45 + float(sys.argv[-1])) * (inp_length+0.00000001)/(out_length+0.00000001)))
+		lengthratio = 0.0000005 * abs(log(0.75 * (inp_length+0.00000001)/(out_length+0.00000001)))
+		
+		target_word_count_penalty = 0.5 * (sum(map(lambda pair: len(pair[1].split()), cand)) - 1)
 		
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		return (float(sys.argv[-8]) * -1 * nomatch_penalty,
-		        float(sys.argv[-7]) *      coverage,
-		        float(sys.argv[-6]) * -1 * lexlengths_penalty,
-		        float(sys.argv[-5]) *      part_count,
-		        float(sys.argv[-4]) * -1 * training_count_penalty,
-		        float(sys.argv[-3]) *      leidos_frequency,
-		        float(sys.argv[-2]) * -1 * lengthratio,
+		return (args.unmatchedpartweight   * -1 * nomatch_penalty,
+		        args.oovcoverageweight     *      coverage,
+		        args.sourcelexrestweight   * -1 * lexrest_penalty,
+		        args.sourcepartcountweight *      part_count,
+		        args.trainingcountweight   * -1 * training_count_penalty,
+		        args.leidosfrequencyweight *      leidos_frequency,
+		        args.lengthratioweight     * -1 * lengthratio,
+		        args.resultwordcountweight * -1 * target_word_count_penalty,
 		        tiebreaker)
 	
 	#### ACTUAL CHOICE PROCESS

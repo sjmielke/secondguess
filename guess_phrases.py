@@ -26,7 +26,7 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
 		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]
 		phrase = ("".join(list(filter(no_useless_suffix, components)))).split()
-		if phrase != []:
+		if phrase != [] and len(phrase) <= 4:
 			yield phrase
 
 def phraseguess_actual_oov(
@@ -38,6 +38,7 @@ def phraseguess_actual_oov(
 		all_oovs: "Counter[str]",
 		train_target: "Counter[str]",
 		leidos_unigrams: "Counter[str]",
+		args: "argparse args",
 		debug_print: bool = True,
 	) -> (str, float, bool):
 	
@@ -56,11 +57,11 @@ def phraseguess_actual_oov(
 		
 		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations.append(guess_choice.choose_full_phrase_translation(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, debug_print))
+		all_translations.append(guess_choice.choose_full_phrase_translation(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, args, debug_print))
 	
-	# If everything was useless (i.e. we didn't generate any phrases), generate an empty candidate
-	if all_translations == []:
-		all_translations = [("", [0.0], cheat_guesses[oov] == "")]
+	# Also allow full copying and deletion
+	all_translations.append(("", [args.deletionscore], cheat_guesses[oov] == ""))
+	all_translations.append((oov, [args.copyscore], cheat_guesses[oov] == oov))
 	
 	# Return best translation!
 	res = max(all_translations, key = lambda x: sum(x[1]))
@@ -69,6 +70,10 @@ def phraseguess_actual_oov(
 	for (t, score, aeh) in all_translations:
 		if t == cheat_guesses[oov]:
 			res = (t, score, aeh)
+	
+	# Or return the word itself, if the OOV wasn't arabic script!
+	if not any(map(lambda c: ord(c) >= 1536 and ord(c) <= 1791, oov)):
+		res = (oov, [0.0], cheat_guesses[oov] == oov)
 	
 	if debug_print:
 		print(" « {} {:<30}".format('=' if res[1] else ' ', res[0]))

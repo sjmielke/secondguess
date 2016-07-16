@@ -11,10 +11,23 @@ import guess_phrases
 
 CandidateWord = typing.NamedTuple('CandidateWord', [('oov', str), ('lexword', str), ('i_lex', int), ('i_oov', int), ('matchlength', int), ('islegal', bool)])
 
-# mono2affix_min5_match3
-def is_legal_match(w1: str, w2: str, i1: int, i2: int, l: int) -> bool:
-	i2_ = len(w1) - (i1 + l)
-	return l >= 3 and (l / len(w1) > 0.9 or (i1 == 0 or i2_ == 0) and i1 + i2_ <= 2 and l >= 5)
+# mono3affix_min6_match4 per word
+def is_legal_match(s: str, i: int, l: int) -> bool:
+	# First, find the two actually matching words of the string
+	# Only one word? Then it's easy.
+	if " " in s:
+		for w in s.split():
+			if len(w) <= i:
+				i -= len(w) + 1
+				continue
+			# It can only be contained in this word!
+			s = w
+			break
+	
+	rest1 = i
+	rest2 = len(s) - (i + l)
+	
+	return l >= 4 and (l / len(s) > 0.65 or (rest1 == 0 or rest2 == 0) and rest1 + rest2 <= 3 and l >= 6)
 
 def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (int, int, int)):
 	matcher.set_seq1(oov)
@@ -23,6 +36,8 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
 
 def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [CandidateWord])":
 	# Match search
+	nextbest_lexcandidates = []
+	nextbest_matchlength = 0
 	best_lexcandidates = []
 	best_matchlength = 0
 	found_legal = False
@@ -33,27 +48,29 @@ def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [Candidat
 	individual_bestmatches = itertools.starmap(get_best_match, all_pairs)
 	
 	# Now compare all findings!
-	#print(" ")
-	#print("?")
 	for (lexword, (i_o, i_w, matchlength)) in individual_bestmatches:
 		if found_legal and (matchlength < 3 or matchlength < best_matchlength):
 			continue
-		legal = is_legal_match(lexword, oov, i_w, i_o, matchlength)
+		legal = is_legal_match(lexword, i_w, matchlength)
 		if not found_legal or legal: # no legality regressions!
 			if (legal and not found_legal # we find our first legal match...
 					or matchlength > best_matchlength): # ...or a better one, regardless of legality status
+				# Also get some more
+				nextbest_lexcandidates = best_lexcandidates
+				nextbest_matchlength = best_matchlength
+				# Then update best
 				best_lexcandidates = [CandidateWord(oov, lexword, i_w, i_o, matchlength, legal)]
 				best_matchlength = matchlength
 			elif matchlength == best_matchlength: # no improvement? just add a candidate
 				best_lexcandidates.append(CandidateWord(oov, lexword, i_w, i_o, matchlength, legal))
 		if legal:
 			found_legal = True
-	#print("!")
-	#print(" ")
 	
 	# If we didn't find anything legal, guess we just copy:
-	if not found_legal:
+	if not found_legal or len(best_lexcandidates) > 75: # matching too much can't be right
 		return (oov, [CandidateWord(oov, oov, -1, -1, len(oov), False)])
+	elif nextbest_matchlength > 3 and nextbest_matchlength + 1 == best_matchlength and len(nextbest_lexcandidates) < 30:
+		return (oov, best_lexcandidates + nextbest_lexcandidates)
 	else:
 		return (oov, best_lexcandidates)
 

@@ -27,7 +27,8 @@ def guess_actual_oovs_into(
 		catmorfdict: "{str: [(str, str)]}",
 		cheat_guesses: "{str: str}",
 		train_target: "Counter[str]",
-		leidos_unigrams: "Counter[str]"
+		leidos_unigrams: "Counter[str]",
+		args: "argparse args"
 	) -> ((int, int), (int, int, int)):
 	# Sort
 	sorted_guessable_oovs = sorted(list(raw_guessable_oovs))
@@ -39,7 +40,8 @@ def guess_actual_oovs_into(
 	                        cheat_guesses,
 	                        raw_guessable_oovs,
 	                        train_target,
-	                        leidos_unigrams)
+	                        leidos_unigrams,
+	                        args)
 	guess_results = list(itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][1]), reverse = True)
 	

@@ -52,14 +52,16 @@ if __name__ == '__main__':
 	parser.add_argument('leidosfile', help='<- counted leidos unigrams')
 	parser.add_argument('matchfile' , help='<> all morphcombination matches')
 	parser.add_argument('outfile'   , help='-> output translation')
-	parser.add_argument('weight1'   , help='<-')
-	parser.add_argument('weight2'   , help='<-')
-	parser.add_argument('weight3'   , help='<-')
-	parser.add_argument('weight4'   , help='<-')
-	parser.add_argument('weight5'   , help='<-')
-	parser.add_argument('weight6'   , help='<-')
-	parser.add_argument('weight7'   , help='<-')
-	parser.add_argument('weight8'   , help='<-')
+	parser.add_argument('--unmatchedpartweight', type=float)
+	parser.add_argument('--oovcoverageweight', type=float)
+	parser.add_argument('--sourcelexrestweight', type=float)
+	parser.add_argument('--sourcepartcountweight', type=float)
+	parser.add_argument('--trainingcountweight', type=float)
+	parser.add_argument('--leidosfrequencyweight', type=float)
+	parser.add_argument('--lengthratioweight', type=float)
+	parser.add_argument('--resultwordcountweight', type=float)
+	parser.add_argument('--deletionscore', type=float)
+	parser.add_argument('--copyscore', type=float)
 	args = parser.parse_args()
 	
 	#dict_only(oovfile, "mud.oovlist.trans_uniq_human", datadir)
@@ -121,7 +123,7 @@ if __name__ == '__main__':
 
 
 	# Then do the actual OOV guessing, while counting, how often were we "better" than the human
-	stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams)
+	stats = guess_logic.guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, args)
 	print_human_algo_statistics(args.reffile, stats)
 	
 	# Write our results in original order into result file
