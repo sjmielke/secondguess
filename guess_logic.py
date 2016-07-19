@@ -1,18 +1,19 @@
 from collections import Counter
 import multiprocessing
+from contextlib import closing
 import itertools
 
 import guess_phrases
 import guess_matching
 
-def get_guessables_into(guesses: "{str: str}", fulllist: "[str]", ne_list: "[str]") -> "(Counter[str], Counter[str])":
+def get_guessables_into(oov_guesses: "{str: str}", fulllist: "[str]", ne_list: "[str]") -> "(Counter[str], Counter[str])":
 	guessable_nes = Counter()
 	guessable_oovs = Counter()
 	for w in fulllist:
-		# Filter out non-alphabetic tokens
+		# Filter out purely non-alphabetic tokens
 		if not any(c.isalpha() for c in w):
 			#print("{:<20} ~~> non-alpha token".format(w))
-			guesses[w] = w
+			oov_guesses[w] = [(w, 1.0)]
 		elif w in ne_list:
 			guessable_nes[w] += 1
 		else:
@@ -42,8 +43,9 @@ def guess_actual_oovs_into(
 	                        train_target,
 	                        leidos_unigrams,
 	                        args)
-	guess_results = list(itertools.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
-	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][1]), reverse = True)
+	with closing(multiprocessing.Pool(processes = 8)) as pool:
+		guess_results = list(pool.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
+	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][0][1]), reverse = True)
 	
 	# What came out?
 	count_nocheat_noalg = 0
@@ -53,8 +55,9 @@ def guess_actual_oovs_into(
 	count_yescheat_correctedalg = 0
 	count_yescheat_yesalg = 0
 	
-	for (oov, (result, scores, algo_eq_human)) in all_results:
-		oov_guesses[oov] = result
+	for (oov, candidates) in all_results:
+		(result, scores, algo_eq_human) = candidates[0]
+		oov_guesses[oov] = list(map(lambda x: (x[0], sum(x[1])), candidates))
 		if cheat_guesses[oov] == oov: # human didn't know
 			if algo_eq_human:
 				count_nocheat_noalg += 1
@@ -70,7 +73,8 @@ def guess_actual_oovs_into(
 			else:
 				count_yescheat_yesalg += 1
 	
-	for (oov, (result, scores, algo_eq_human)) in all_results[0:20] + [("[...]", ("[...]", [], False))] + all_results[-20:]:
+	for (oov, candidates) in all_results[0:20] + [("[...]", [("[...]", [], False)])] + all_results[-20:]:
+		(result, scores, algo_eq_human) = candidates[0]
 		print("{:>20} -> {:<20}".format(oov, result), end='')
 		print("{:10.7f} <- ".format(sum(scores)), end='')
 		for s in scores:

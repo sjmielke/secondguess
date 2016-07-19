@@ -10,7 +10,7 @@ def print_dups(ss, prefix = ""):
 	if len(list(s)) != len(list(set(s))):
 		print(prefix + "{} -> {}".format(len(list(s)), len(list(set(s)))))
 
-def choose_full_phrase_translation(
+def score_full_phrase_translations(
 		fulloov: str,
 		unsorted_candidates: "[[CandidateWord]]",
 		translations: "{str: Set[str]}",
@@ -38,7 +38,12 @@ def choose_full_phrase_translation(
 		#print_dups(result, "translate_candidate / result: ")
 		return result
 	
-	def get_trans(transcandidate: "[(CandidateWord, str)]") -> str: return " ".join(map(lambda c: c[1], transcandidate))
+	def get_trans(transcandidate: "[(CandidateWord, str)]") -> str:
+		return " ".join(map(lambda c: c[1], transcandidate))
+	
+	def is_already_english(s):
+		# http://stackoverflow.com/a/18403812
+		return len(s) == len(s.encode())
 	
 	def score_phrase(cand: "[(CandidateWord, str)]") -> float:
 		cws = list(guess_helper.mapfst(cand))
@@ -46,7 +51,9 @@ def choose_full_phrase_translation(
 		# SOURCE SIDE FEATURES
 		
 		# each illegal result results in penalty
-		nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w.islegal else 1, cws))
+		nomatch_penalty = 0.07 * sum(map(lambda w: 0 if w.islegal or is_already_english(w.oov) else 1, cws))
+		# perfect matches are really nice!
+		perfectmatchbonus = 0.5 * sum(map(lambda w: 1 if (w.islegal or is_already_english(w.oov)) and w.matchlength == len(w.lexword) else 0, cws))
 		# prefer more OOV coverage (sum of matchlength [not translating is a full match!] by total oov length)
 		coverage = 0.15 * sum(map(lambda w: w.matchlength, cws)) / sum(map(lambda w: len(w.oov), cws))
 		# prefer less umatched lexword chars
@@ -81,7 +88,32 @@ def choose_full_phrase_translation(
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
+		if len(cand) == 2 and (cand[0][0].oov == "2011-" and cand[1][0].oov == "يىلدىكى" and cand[1][1] == 'suchlike') or (cand[0][0].oov == "2011-يىلدىكى" and cand[0][1] == 'suchlike'):
+			print(cand)
+			print((args.unmatchedpartweight   * -1 * nomatch_penalty,
+		        args.perfectmatchweight    *      perfectmatchbonus,
+		        args.oovcoverageweight     *      coverage,
+		        args.sourcelexrestweight   * -1 * lexrest_penalty,
+		        args.sourcepartcountweight *      part_count,
+		        args.trainingcountweight   * -1 * training_count_penalty,
+		        args.leidosfrequencyweight *      leidos_frequency,
+		        args.lengthratioweight     * -1 * lengthratio,
+		        args.resultwordcountweight * -1 * target_word_count_penalty,
+		        tiebreaker))
+			print(sum((args.unmatchedpartweight   * -1 * nomatch_penalty,
+		        args.perfectmatchweight    *      perfectmatchbonus,
+		        args.oovcoverageweight     *      coverage,
+		        args.sourcelexrestweight   * -1 * lexrest_penalty,
+		        args.sourcepartcountweight *      part_count,
+		        args.trainingcountweight   * -1 * training_count_penalty,
+		        args.leidosfrequencyweight *      leidos_frequency,
+		        args.lengthratioweight     * -1 * lengthratio,
+		        args.resultwordcountweight * -1 * target_word_count_penalty,
+		        tiebreaker)))
+		
+		
 		return (args.unmatchedpartweight   * -1 * nomatch_penalty,
+		        args.perfectmatchweight    *      perfectmatchbonus,
 		        args.oovcoverageweight     *      coverage,
 		        args.sourcelexrestweight   * -1 * lexrest_penalty,
 		        args.sourcepartcountweight *      part_count,
@@ -132,6 +164,9 @@ def choose_full_phrase_translation(
 					"---",
 					oov))
 	
-	return (get_trans(result_transcandidate),
-	        score_phrase(result_transcandidate),
-	        what_the_algo_said == cheat_guesses[fulloov])
+	def prepare_for_output(tc):
+		return (get_trans(tc),
+		        score_phrase(tc),
+		        get_trans(tc) == what_the_algo_said and what_the_algo_said == cheat_guesses[fulloov])
+	
+	return sorted(list(map(prepare_for_output, scored)), key = lambda t: t[1], reverse = True)

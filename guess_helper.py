@@ -1,3 +1,4 @@
+import itertools
 from difflib import SequenceMatcher
 from collections import defaultdict
 
@@ -26,4 +27,10 @@ def load_catmorfdict(oov_original_list, morffile):
 	return dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
 
 def mapfst(l):
-	return map(lambda x: x[0], l)
+	return tuple(map(lambda x: tuple(x)[0], l))
+
+def apply_list2dict(f, l):
+	return dict(zip(l, map(f, l)))
+
+def uniq_list(l):
+	return [k for k,v in itertools.groupby(sorted(l))]

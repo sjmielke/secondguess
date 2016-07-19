@@ -3,31 +3,35 @@ import operator # mul
 import sys # stderr
 from functools import reduce
 
-from guess_helper import mapfst
+import guess_helper
 import guess_choice
 
 def no_useless_suffix(s):
 	return s not in ["ماق", "ىش", "دى", "تى", "دۇ", "تۇ", "دۈ", "تۈ", "غان", "قان", "گەن", "كەن", "غۇز", "قۇز", "گۈز", "كۇز", "دۇر", "تۇر", "دۈر", "تۈر", "لار", "لەر", "لىر", "نى", "لىق", "لىك", "لۇق", "لۈك", "سى", "ى", "كى", "مۇ", "مۇ", "ئىدى"]
 
 def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
-	segs_texts = list(mapfst(segments))
+	segs_texts = list(guess_helper.mapfst(segments))
+	
+	#print("Generating for ", segs_texts)
 	
 	fulloov = "".join(segs_texts)
 	
 	for s in ["t.co/", "://", "@"]:
 		if s in fulloov:
-			yield [fulloov]
-			return
+			return [[fulloov]]
 	if len(segs_texts) > 10:
 		print("»{}« was longer than 10 segments!".format(" + ".join(segs_texts)), file = sys.stderr)
-		yield [fulloov]
-		return
+		return [[fulloov]]
 	
+	result = []
 	for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
 		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]
 		phrase = ("".join(list(filter(no_useless_suffix, components)))).split()
 		if phrase != [] and len(phrase) <= 4:
-			yield phrase
+			#print("   ", phrase)
+			result.append(phrase)
+	
+	return sorted(guess_helper.uniq_list(result))
 
 def phraseguess_actual_oov(
 		oov: str,
@@ -57,25 +61,33 @@ def phraseguess_actual_oov(
 		
 		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations.append(guess_choice.choose_full_phrase_translation(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, args, debug_print))
+		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, args, debug_print)
 	
 	# Also allow full copying and deletion
 	all_translations.append(("", [args.deletionscore], cheat_guesses[oov] == ""))
 	all_translations.append((oov, [args.copyscore], cheat_guesses[oov] == oov))
 	
 	# Return best translation!
-	res = max(all_translations, key = lambda x: sum(x[1]))
+	res = sorted(all_translations, key = lambda x: sum(x[1]), reverse = True)
 	
 	# Or the correct one, if it was returned
 	for (t, score, aeh) in all_translations:
 		if t == cheat_guesses[oov]:
-			res = (t, score, aeh)
+			res = [(t, score, aeh)]
 	
 	# Or return the word itself, if the OOV wasn't arabic script!
 	if not any(map(lambda c: ord(c) >= 1536 and ord(c) <= 1791, oov)):
-		res = (oov, [0.0], cheat_guesses[oov] == oov)
+		res = [(oov, [1.0 + sum(res[0][1])], cheat_guesses[oov] == oov)] + res
 	
 	if debug_print:
-		print(" « {} {:<30}".format('=' if res[1] else ' ', res[0]))
+		print(" « {} {:<30}".format('=' if res[0][2] else ' ', res[0][0]))
 	
-	return res
+	# Filter duplicate hypotheses, keep best one
+	transset = set()
+	dupfree_result = []
+	for (t, scores, aeh) in res:
+		if t not in transset:
+			dupfree_result.append((t, scores, aeh))
+			transset.add(t)
+	
+	return dupfree_result

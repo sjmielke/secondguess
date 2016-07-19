@@ -3,7 +3,7 @@ from contextlib import closing
 import multiprocessing
 import typing # NamedTuple
 import itertools
-import sys # stderr
+import sys
 import argparse
 
 import guess_helper
@@ -79,12 +79,15 @@ if __name__ == '__main__':
 	
 	subparsers = parser.add_subparsers(title='action')
 	
-	mode1 = subparsers.add_parser('mode1', help='Generate phrases and TODOs')
+	mode1 = subparsers.add_parser('mode1_genphrases', help='Generate phrases for one set')
 	mode1.add_argument('oovfile'   , help='<- simple OOV list')
 	mode1.add_argument('morffile'  , help='<- morf-segmented/-categorized OOV list')
+	mode1.set_defaults(which='mode1_genphrases')
+	
+	mode1 = subparsers.add_parser('mode1_joinphrases_genbatches', help='Join phrases of all sets and generate TODOs')
 	mode1.add_argument('batchsize' , type=int, help='batch size')
-	mode1.add_argument('matchfile' , help='-> matchfile prefix')
-	mode1.set_defaults(which='mode1')
+	mode1.add_argument('matchfile' , help='<> matchfile prefix')
+	mode1.set_defaults(which='mode1_joinphrases_genbatches')
 	
 	mode2 = subparsers.add_parser('mode2', help='Reduce one TODO file')
 	mode2.add_argument('lexfile'   , help='<- normalized lexicon')
@@ -98,20 +101,38 @@ if __name__ == '__main__':
 	
 	args = parser.parse_args()
 	
-	if args.which == 'mode1':
+	if args.which == 'mode1_genphrases':
 		# First load data
 		oov_original_list = guess_helper.load_file_lines(args.oovfile)
 		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, args.morffile)
 		
 		# Then generate all phrases
-		all_phrases = []
+		all_phraseparts = []
 		for _, segs in catmorfdict.items():
-			all_phrases += itertools.chain(*guess_phrases.gen_phrases(segs))
-		uniq_phrases = [k for k,v in itertools.groupby(sorted(all_phrases))] # uniq for unhashable lists!
-		print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phrases), len(uniq_phrases), len(catmorfdict.keys())), flush = True, file = sys.stderr)
+			all_phraseparts += itertools.chain(*guess_phrases.gen_phrases(segs))
+		uniq_phraseparts = guess_helper.uniq_list(all_phraseparts) # uniq for unhashable lists!
+		print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phraseparts), len(uniq_phraseparts), len(catmorfdict.keys())), flush = True, file = sys.stderr)
 		
-		# Finally write TODOs in all files
-		batches = [uniq_phrases[i:i + args.batchsize] for i in range(0, len(uniq_phrases), args.batchsize)]
+		# ... to stdout!
+		print("\n".join(uniq_phraseparts))
+	elif args.which == 'mode1_joinphrases_genbatches':
+		# ... and back in from stdin!
+		all_uniq_phraseparts = sys.stdin.read().splitlines()
+		
+		print("Found", len(all_uniq_phraseparts), "phraseparts...", file = sys.stderr)
+		
+		# Filter those out that are already present in the matchfile
+		try:
+			with open(args.matchfile) as f:
+				prev_matches = eval(f.read())
+		except:
+			prev_matches = {}
+		new_uniq_phraseparts = list(filter(lambda p: p not in prev_matches, all_uniq_phraseparts))
+		
+		print("...", len(new_uniq_phraseparts), "new ones.", file = sys.stderr)
+		
+		# Finally write new TODOs in all files
+		batches = [new_uniq_phraseparts[i:i + args.batchsize] for i in range(0, len(new_uniq_phraseparts), args.batchsize)]
 		for (i, batch) in enumerate(batches):
 			with open(args.matchfile + ".batch." + str(i + 1), 'w') as f: # files from 1 to len
 				print(batch, file = f)
@@ -133,9 +154,16 @@ if __name__ == '__main__':
 			print(result, file = f)
 	
 	elif args.which == 'mode3':
-		d = {}
+		# Load all previous matches
+		try:
+			with open(args.matchfile) as f:
+				prev_matches = eval(f.read())
+		except:
+			prev_matches = {}
+		
+		# Add new matches!
 		for i in range(args.noofbatches):
 			with open(args.matchfile + ".batch." + str(i + 1) + ".done") as f: # files from 1 to len
-				d.update(eval(f.read()))
+				prev_matches.update(eval(f.read()))
 		with open(args.matchfile, 'w') as f:
-			print(d, file = f)
+			print(prev_matches, file = f)

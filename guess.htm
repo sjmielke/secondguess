@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+body {
+  font-family: "Charter";
+  font-size: 19px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+form {
+  font-family: "Nimbus Sans L";
+  font-size: 20pt;
+  padding: 1em 0;
+  margin: 0;
+  width: 100%;
+  background-color: #d0d5df;
+}
+input {
+  background-color: #f0f5ff;
+  font-size: 20pt;
+  color: #111111;
+  border-radius: .4em;
+  border: 1px #e0e5ef solid;
+  margin: 0;
+  padding: 0 .3em;
+}
+input#sentence_input {
+  width: calc(100% - 5em);
+  height: 1.8em;
+}
+input#sentence_submit {
+  width: 2em;
+  height: 2em;
+}
+hr {
+  color: #e0e5ef;
+}
+div#contentwrapper {
+  width: 100%;
+  margin: 1em auto;
+  overflow-x: scroll;
+  white-space: nowrap;
+}
+.flipped {
+  /* http://stackoverflow.com/questions/18997724/how-to-change-scroll-bar-position-with-css */
+  transform:rotateX(180deg);
+  -ms-transform:rotateX(180deg); /* IE 9 */
+  -webkit-transform:rotateX(180deg); /* Safari and Chrome */
+}
+div.wordnode {
+  margin: .5em;
+  padding: .5em;
+  background-color: #f0f5ff;
+  border-radius: .4em;
+  border: 1px #e0e5ef solid;
+  display: inline-block;
+  vertical-align: top;
+}
+a.translation {
+  font-size: 70%;
+  display: block;
+}
+.hilit {
+  color: #ff0000;
+  background-color: #e0e5ef;
+}
+</style>
+</head>
+<body>
+  <form>
+    <input name="sentence" id="sentence_input" value="جۇڭگونىڭ ياپونىيەدە تۇرۇشلۇق باش ئەلچىخانىسى 15-چېسلا جىددىي ئۇقتۇرۇش چىقىرىپ ، ياپونىيەنىڭ يەر" />
+    <input type="button" id="sentence_submit" value=">>" />
+  </form>
+  <div id="contentwrapper" class="flipped">
+  <div id="contentarea" class="flipped">
+  </div>
+  </div>
+  <script>
+    function createWordNode(word) {
+      var newEl = document.createElement('div');
+      newEl.className = 'wordnode';
+      newEl.appendChild(document.createTextNode(word));
+      newEl.appendChild(document.createElement('hr'));
+      loadingGif = document.createElement('img');
+      loadingGif.src = 'ripple.svg';
+      newEl.appendChild(loadingGif);
+      return newEl;
+    }
+    
+    function activateWordNode(i, n) {
+      if(i >= n)
+        return;
+      var wordNode = document.getElementById("word" + i);
+      var word = wordNode.firstChild.textContent;
+      wordNode.getElementsByTagName('img')[0].src = 'ripple2.svg';
+      httpRequest = new XMLHttpRequest();
+      httpRequest.onreadystatechange = function() { finishWordNode(i, n, httpRequest); };
+      httpRequest.open('GET', "http://localhost:8080/lookupword?oov=" + encodeURIComponent(word));
+      httpRequest.send();
+    }
+    
+    function getHighlightFunction(elId) {
+      return function() {
+        cl = document.getElementById(elId).classList;
+        if(cl.contains("hilit"))
+          cl.remove("hilit");
+        else
+          cl.add("hilit");
+      }
+    }
+    
+    function finishWordNode(i, n, httpRequest) {
+      if (httpRequest.readyState === XMLHttpRequest.DONE) {
+        if (httpRequest.status === 200) {
+          var wordNode = document.getElementById("word" + i);
+          wordNode.removeChild(wordNode.getElementsByTagName('img')[0]);
+          result = JSON.parse(httpRequest.responseText);
+          for(var j = 0; j < result.length; ++j) {
+            var newP = document.createElement('a');
+            newP.className = "translation";
+            newP.id = "word" + i + "translation" + j;
+            newP.addEventListener('click', getHighlightFunction("word" + i + "translation" + j));
+            newP.appendChild(document.createTextNode(result[j][0]));
+            if(result[j][1] > 0.1)
+              newP.style.opacity = 1.0;
+            else if (result[j][1] < 0.0)
+              newP.style.opacity = 0.2;
+            else
+              newP.style.opacity = 0.2 + 8.0 * result[j][1];
+            wordNode.appendChild(newP);
+          }
+          activateWordNode(i + 1, n);
+        } else {
+          alert('There was a problem with the request, code ' + httpRequest.status);
+        }
+      }
+    }
+    
+    function guessSentence() {
+      // Prepare word nodes
+      document.getElementById("contentarea").innerHTML = "";
+      var words = document.getElementById("sentence_input").value.split(/\s+/);
+      for (var i = 0; i < words.length; ++i) {
+        wordNode = createWordNode(words[i]);
+        wordNode.id = "word" + i;
+        document.getElementById("contentarea").appendChild(wordNode);
+      }
+      
+      // Walk all word nodes again!
+      activateWordNode(0, words.length);
+    }
+    
+    document.getElementById("sentence_input").onkeypress = function(e) {
+      // http://stackoverflow.com/questions/11365632/how-to-detect-when-the-user-presses-enter-in-an-input-field
+      var event = e || window.event;
+      var charCode = event.which || event.keyCode;
+
+      if ( charCode == '13' ) {
+        // Enter pressed
+        guessSentence();
+        return false;
+      }
+    }
+    document.getElementById("sentence_submit").addEventListener('click', guessSentence);
+  </script>
+</body>
+</html>
