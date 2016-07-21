@@ -35,6 +35,8 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
 	return (lexword, (i_o, i_w, matchlength))
 
 def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [CandidateWord])":
+	print("Looking up", oov, "...", end = '', flush = True)
+	
 	# Match search
 	nextbest_lexcandidates = []
 	nextbest_matchlength = 0
@@ -46,6 +48,8 @@ def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [Candidat
 	all_pairs = map(lambda w: (oov, w, matchers[w]), sorted(matchers.keys()))
 	
 	individual_bestmatches = itertools.starmap(get_best_match, all_pairs)
+	
+	print("...", end = '', flush = True)
 	
 	# Now compare all findings!
 	for (lexword, (i_o, i_w, matchlength)) in individual_bestmatches:
@@ -65,6 +69,8 @@ def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [Candidat
 				best_lexcandidates.append(CandidateWord(oov, lexword, i_w, i_o, matchlength, legal))
 		if legal:
 			found_legal = True
+	
+	print("done!", flush = True)
 	
 	# If we didn't find anything legal, guess we just copy:
 	if not found_legal or len(best_lexcandidates) > 75: # matching too much can't be right
@@ -143,13 +149,21 @@ if __name__ == '__main__':
 	elif args.which == 'mode2':
 		# Load matchers
 		(matchers, _) = guess_helper.load_dictionary(args.lexfile)
-		print("Matchers loaded.")
+		print("Matchers loaded!")
 		
 		with open(args.todofile) as f:
 			batch = eval(f.read())
+		
+		print("Loaded batch {}".format(args.todofile))
+		
 		with closing(multiprocessing.Pool(processes = 8)) as pool:
+			print("Opened the pool...", flush = True)
 			data = list(zip(batch, itertools.repeat(matchers)))
+			print("Let's start the starmap!", flush = True)
 			result = dict(pool.starmap(lookup_oov, data))
+		
+		print("Writing results to {}".format(args.todofile + ".done"))
+		
 		with open(args.todofile + ".done", 'w') as f:
 			print(result, file = f)
 	

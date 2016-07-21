@@ -22,7 +22,8 @@ def get_guessables_into(oov_guesses: "{str: str}", fulllist: "[str]", ne_list: "
 
 def guess_actual_oovs_into(
 		oov_guesses: "{str: str}",
-		raw_guessable_oovs: "Counter[str]",
+		raw_guessable_oovs: "[str]",
+		all_raw_guessable_oovs: "Counter[str]",
 		all_matches: "{str: [CandidateWord]}",
 		translations: "{str: Set[str]}",
 		catmorfdict: "{str: [(str, str)]}",
@@ -32,18 +33,18 @@ def guess_actual_oovs_into(
 		args: "argparse args"
 	) -> ((int, int), (int, int, int)):
 	# Sort
-	sorted_guessable_oovs = sorted(list(raw_guessable_oovs))
+	sorted_guessable_oovs = sorted(raw_guessable_oovs)
 	# Do
 	preproc = lambda oov: ( oov,
 	                        all_matches,
 	                        translations,
 	                        catmorfdict,
 	                        cheat_guesses,
-	                        raw_guessable_oovs,
+	                        all_raw_guessable_oovs,
 	                        train_target,
 	                        leidos_unigrams,
 	                        args)
-	with closing(multiprocessing.Pool(processes = 8)) as pool:
+	with closing(multiprocessing.Pool(processes = 4)) as pool:
 		guess_results = list(pool.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][0][1]), reverse = True)
 	

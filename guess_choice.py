@@ -88,30 +88,6 @@ def score_full_phrase_translations(
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		if len(cand) == 2 and (cand[0][0].oov == "2011-" and cand[1][0].oov == "يىلدىكى" and cand[1][1] == 'suchlike') or (cand[0][0].oov == "2011-يىلدىكى" and cand[0][1] == 'suchlike'):
-			print(cand)
-			print((args.unmatchedpartweight   * -1 * nomatch_penalty,
-		        args.perfectmatchweight    *      perfectmatchbonus,
-		        args.oovcoverageweight     *      coverage,
-		        args.sourcelexrestweight   * -1 * lexrest_penalty,
-		        args.sourcepartcountweight *      part_count,
-		        args.trainingcountweight   * -1 * training_count_penalty,
-		        args.leidosfrequencyweight *      leidos_frequency,
-		        args.lengthratioweight     * -1 * lengthratio,
-		        args.resultwordcountweight * -1 * target_word_count_penalty,
-		        tiebreaker))
-			print(sum((args.unmatchedpartweight   * -1 * nomatch_penalty,
-		        args.perfectmatchweight    *      perfectmatchbonus,
-		        args.oovcoverageweight     *      coverage,
-		        args.sourcelexrestweight   * -1 * lexrest_penalty,
-		        args.sourcepartcountweight *      part_count,
-		        args.trainingcountweight   * -1 * training_count_penalty,
-		        args.leidosfrequencyweight *      leidos_frequency,
-		        args.lengthratioweight     * -1 * lengthratio,
-		        args.resultwordcountweight * -1 * target_word_count_penalty,
-		        tiebreaker)))
-		
-		
 		return (args.unmatchedpartweight   * -1 * nomatch_penalty,
 		        args.perfectmatchweight    *      perfectmatchbonus,
 		        args.oovcoverageweight     *      coverage,

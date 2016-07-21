@@ -2,15 +2,12 @@ PYGUESSDIR=`pwd`
 
 #echo "2010 2011-يىلدىكى" | python3 $PYGUESSDIR/thirdeye.py pipe\
 
-python3 $PYGUESSDIR/thirdeye.py server\
-	nocheatref\
+python3 $PYGUESSDIR/thirdeye.py mode_server\
 	staticdata/binary-baseline-model\
 	staticdata/v09.guessing_input_lexicon\
 	staticdata/emptyfile\
 	staticdata/train.target.agile\
 	staticdata/leidos_unigrams\
-	pipe\
-	pipe\
 	--unmatchedpartweight   1.0\
 	--perfectmatchweight    1.0\
 	--oovcoverageweight     0.9\
