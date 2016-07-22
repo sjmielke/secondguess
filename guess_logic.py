@@ -30,7 +30,7 @@ def guess_actual_oovs_into(
 		cheat_guesses: "{str: str}",
 		train_target: "Counter[str]",
 		leidos_unigrams: "Counter[str]",
-		args: "argparse args"
+		conf: "json config"
 	) -> ((int, int), (int, int, int)):
 	# Sort
 	sorted_guessable_oovs = sorted(raw_guessable_oovs)
@@ -43,7 +43,7 @@ def guess_actual_oovs_into(
 	                        all_raw_guessable_oovs,
 	                        train_target,
 	                        leidos_unigrams,
-	                        args)
+	                        conf)
 	with closing(multiprocessing.Pool(processes = 4)) as pool:
 		guess_results = list(pool.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][0][1]), reverse = True)

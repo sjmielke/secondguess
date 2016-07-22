@@ -1,3 +1,4 @@
+from scoop import futures
 import itertools
 import sys # stderr
 from collections import Counter
@@ -30,22 +31,27 @@ def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
 	print("{}> {:<27} {:3} ({})".format(ref, "Human = algo:", \
 		c_yy, "found the human suggestion containing candidate and naturally chose it!"))
 
-# uses nefile, trainfile, leidosfile
-def load_data(args):
+def load_global_data(conf):
+	# Load dictionary
+	(matchers, translations) = guess_helper.load_dictionary(conf['global-files']['lexfile'])
+	
 	# Load training data
-	train_target = Counter(" ".join(guess_helper.load_file_lines(args.trainfile)).split())
+	train_target = Counter(" ".join(guess_helper.load_file_lines(conf['global-files']['train-target'])).split())
 	
 	# Load LEIDOS unigrams statistics
-	leidos_unigrams = Counter(dict([(l.split()[1], int(l.split()[0])) for l in guess_helper.load_file_lines(args.leidosfile) if len(l.split()) != 1]))
+	unigramlines = guess_helper.load_file_lines(conf['global-files']['leidos-unigrams'])
+	unigramlines = filter(lambda l: len(l.split()) != 1, unigramlines) # filter out empty-string unigrams
+	unigramlines = [(l.split()[1], int(l.split()[0])) for l in unigramlines] # parse `uniq -c` output
+	leidos_unigrams = Counter(dict(unigramlines))
 	
-	return (train_target, leidos_unigrams)
+	return ((matchers, translations), train_target, leidos_unigrams)
 
 def prepare_guessing(oov_original_list, nes, catmorfdict, reffile):
 	# Load cheat/reference
 	if reffile == "nocheatref":
 		reffile = None
 	if reffile != None:
-		cheat_list = guess_helper.load_file_lines(args.reffile)
+		cheat_list = guess_helper.load_file_lines(reffile)
 	else:
 		cheat_list = ["THISVERYLONGANDOBSCURESTRINGSHOULDNOTBEINTHEDICTIONARY"] * len(oov_original_list)
 	cheat_guesses = dict(zip(oov_original_list, cheat_list))
@@ -61,81 +67,17 @@ def prepare_guessing(oov_original_list, nes, catmorfdict, reffile):
 
 	return (oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses)
 
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Guess OOVs.')
-	
 	subparsers = parser.add_subparsers(title='action')
 	
-	# mode server: Expose webservice for full pipeline
-	
 	mode_server = subparsers.add_parser('mode_server', help='Expose webservice for full pipeline')
-	mode_server.add_argument('morfmodel' , help='<- binarized morfessor model')
-	mode_server.add_argument('lexfile'   , help='<- normalized lexicon')
-	mode_server.add_argument('nefile'    , help='<- NE list')
-	mode_server.add_argument('trainfile' , help='<- tokenized training target (English)')
-	mode_server.add_argument('leidosfile', help='<- counted leidos unigrams')
-	mode_server.add_argument('--unmatchedpartweight', type=float)
-	mode_server.add_argument('--perfectmatchweight', type=float)
-	mode_server.add_argument('--oovcoverageweight', type=float)
-	mode_server.add_argument('--sourcelexrestweight', type=float)
-	mode_server.add_argument('--sourcepartcountweight', type=float)
-	mode_server.add_argument('--trainingcountweight', type=float)
-	mode_server.add_argument('--leidosfrequencyweight', type=float)
-	mode_server.add_argument('--lengthratioweight', type=float)
-	mode_server.add_argument('--resultwordcountweight', type=float)
-	mode_server.add_argument('--deletionscore', type=float)
-	mode_server.add_argument('--copyscore', type=float)
 	mode_server.set_defaults(which='mode_server')
 	
-	# mode 1: Generate batches for scoring
-	
-	mode1 = subparsers.add_parser('mode1_genbatches', help='Generate batches for scoring')
-	mode1.add_argument('batchsize', type=int)
-	mode1.add_argument('oovfile'  , help='<- simple OOV list')
-	mode1.add_argument('reffile'  , help='<- cheating reference translation')
-	mode1.add_argument('morffile' , help='<- morf-segmented/-categorized OOV list')
-	mode1.add_argument('nefile'   , help='<- NE list')
-	mode1.add_argument('matchfile', help='<> all morphcombination matches')
-	mode1.set_defaults(which='mode1_genbatches')
-	
-	# mode 2: Score individual batch
-	
-	mode2 = subparsers.add_parser('mode2_scorebatch', help='Score individual batch')
-	
-	mode2.add_argument('batchfile' , help='<- batch file')
-	mode2.add_argument('reffile'   , help='<- cheating reference translation')
-	
-	mode2.add_argument('lexfile'   , help='<- normalized lexicon')
-	mode2.add_argument('morffile'  , help='<- morf-segmented/-categorized OOV list')
-	mode2.add_argument('nefile'    , help='<- NE list')
-	mode2.add_argument('trainfile' , help='<- tokenized training target (English)')
-	mode2.add_argument('leidosfile', help='<- counted leidos unigrams')
-	
-	mode2.add_argument('matchfile' , help='<> all morphcombination matches')
-	
-	mode2.add_argument('--unmatchedpartweight', type=float)
-	mode2.add_argument('--perfectmatchweight', type=float)
-	mode2.add_argument('--oovcoverageweight', type=float)
-	mode2.add_argument('--sourcelexrestweight', type=float)
-	mode2.add_argument('--sourcepartcountweight', type=float)
-	mode2.add_argument('--trainingcountweight', type=float)
-	mode2.add_argument('--leidosfrequencyweight', type=float)
-	mode2.add_argument('--lengthratioweight', type=float)
-	mode2.add_argument('--resultwordcountweight', type=float)
-	mode2.add_argument('--deletionscore', type=float)
-	mode2.add_argument('--copyscore', type=float)
-	
-	mode2.set_defaults(which='mode2_scorebatch')
-	
-	# mode 3: Combined scored batches into result
-	
-	mode3 = subparsers.add_parser('mode3_combineresults', help='Combined scored batches into result')
-	
-	mode3.add_argument('oovfile'    , help='<- original OOV list')
-	mode3.add_argument('noofbatches', help='<- no. of batches', type=int)
-	mode3.add_argument('outfile'    , help='-> output translation')
-	
-	mode3.set_defaults(which='mode3_combineresults')
+	mode_batch = subparsers.add_parser('mode_batch', help='Score whole sets / batches')
+	mode_batch.add_argument('setname')
+	mode_batch.set_defaults(which='mode_batch')
 	
 	args = parser.parse_args()
 	
@@ -145,12 +87,11 @@ if __name__ == '__main__':
 		import json
 		
 		# Load data
-		(matchers, translations) = guess_helper.load_dictionary(args.lexfile)
-		nes = list(guess_helper.load_file_lines(args.nefile)) # Load NE list -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
-		(train_target, leidos_unigrams) = load_data(args)
+		conf = guess_helper.load_config(None)
+		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
 		
-		morfmodel = morfessor.MorfessorIO().read_binary_model_file(args.morffile)
-		print("Loaded morf")
+		morfmodel = morfessor.MorfessorIO().read_binary_model_file(conf['server-files']['morfmodel'])
+		print("Loaded files")
 		
 		def do_one_shot(oov_original_list):
 			catmorfdict = guess_helper.apply_list2dict(lambda w: list(zip(morfmodel.viterbi_segment(w)[0], itertools.repeat("STM"))), oov_original_list)
@@ -161,9 +102,9 @@ if __name__ == '__main__':
 			print("Matched phraseparts " + str(phraseparts))
 			# Separate NEs and stuff
 			(oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses) \
-				= prepare_guessing(oov_original_list, nes, catmorfdict, None)
+				= prepare_guessing(oov_original_list, [], catmorfdict, None)
 			# Then do the actual OOV guessing, while counting, how often were we "better" than the human
-			stats = guess_logic.guess_actual_oovs_into(oov_guesses, list(guessable_oovs_counter), guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, args)
+			stats = guess_logic.guess_actual_oovs_into(oov_guesses, list(guessable_oovs_counter), guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, conf)
 			return oov_guesses
 		
 		# Read data and crunch
@@ -183,68 +124,32 @@ if __name__ == '__main__':
 			return json.dumps(oov_guesses[oov])
 		bottle.run(app, host='localhost', port=8080)
 
-	elif args.which == 'mode1_genbatches':
+	elif args.which == 'mode_batch':
 		# Load data
-		oov_original_list = guess_helper.load_file_lines(args.oovfile)
-		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, args.morffile)
-		nes = list(guess_helper.load_file_lines(args.nefile)) # Load NE list -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
+		conf = guess_helper.load_config(args.setname)
+		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
+		oov_original_list = guess_helper.load_file_lines(conf['set-files']['oovfile'])
+		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
+		nes = list(guess_helper.load_file_lines(conf['set-files']['nefile'])) # Load NE list -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
 		
 		# Load previously calculated matches
-		with open(args.matchfile) as f:
+		with open(conf['global-files']['allmatches']) as f:
 			all_matches = eval(f.read())
 		
 		# Prepare guessing data
 		(oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses) \
-			= prepare_guessing(oov_original_list, nes, catmorfdict, args.reffile)
+			= prepare_guessing(oov_original_list, nes, catmorfdict, conf['set-files']['reffile'])
 		print("{} distinct NEs and {} distinct OOVs to guess.".format(len(guessable_nes_counter), len(guessable_oovs_counter)), file = sys.stderr)
 		
 		uniq_oov_list = list(guessable_oovs_counter)
 		
-		batches = [uniq_oov_list[i:i + args.batchsize] for i in range(0, len(uniq_oov_list), args.batchsize)]
-		for (i, batch) in enumerate(batches):
-			with open(args.oovfile + ".scores.batch." + str(i + 1), 'w') as f: # files from 1 to len
-				print((oov_guesses, guessable_oovs_counter, catmorfdict, cheat_guesses, batch), file = f)
-		
-		# Now output the number of batches created for further handling
-		print(len(batches))
-	
-	elif args.which == 'mode2_scorebatch':
-		# Load data
-		(_, translations) = guess_helper.load_dictionary(args.lexfile)
-		(train_target, leidos_unigrams) = load_data(args)
-		with open(args.matchfile) as f:
-			all_matches = eval(f.read())
-		
-		# Load batch
-		with open(args.batchfile) as f:
-			(oov_guesses, guessable_oovs_counter, catmorfdict, cheat_guesses, batch) = eval(f.read())
-		
 		# Guess batch
-		newstats = guess_logic.guess_actual_oovs_into(oov_guesses, batch, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, args)
-		# Write batch
-		with open(args.batchfile + ".done", 'w') as f:
-			print((oov_guesses, newstats), file = f)
-		
-	elif args.which == 'mode3_combineresults':
-		oov_guesses = {}
-		oov_original_list = guess_helper.load_file_lines(args.oovfile)
-		stats = ((0, 0), (0, 0, 0, 0))
-		
-		print("Let's combine scores now...", end = '', flush = True)
-		
-		for i in range(args.noofbatches):
-			print(i + 1, "...", end = '', flush = True)
-			with open(args.oovfile + ".scores.batch." + str(i + 1) + ".done") as f:
-				(batchguesses, batchstats) = eval(f.read())
-				oov_guesses.update(batchguesses)
-				stats = guess_helper.tupleadd(stats, batchstats)
-		
-		print("done!", flush = True)
+		stats = guess_logic.guess_actual_oovs_into(oov_guesses, uniq_oov_list, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, conf)
 		
 		print_human_algo_statistics(stats)
 		
 		# Write our results in original order into result file
-		with open(args.outfile, 'w') as translist:
+		with open(conf['set-files']['1best-out'], 'w') as translist:
 			for oov in oov_original_list:
 				print(oov_guesses[oov][0][0], file=translist)
 	else:

@@ -1,4 +1,5 @@
 import itertools
+import json
 from difflib import SequenceMatcher
 from collections import defaultdict
 
@@ -10,6 +11,22 @@ def load_file_lines(path: str) -> [str]:
 	with open(path) as f:
 		ls = f.read().splitlines()
 	return ls
+
+def load_config(setname):
+	# Load pure JSON dict
+	with open("pyguess.config") as f:
+		conf = json.loads(f.read())
+	
+	# Insert specific setname
+	if setname != None:
+		def replacesetname(d):
+			if isinstance(d, str):
+				return d.replace(conf['set-placeholder'], setname)
+			else
+				return {k, replacesetname(v) for k, v in d}
+		return replacesetname(conf)
+	else:
+		return conf
 
 def load_dictionary(path: str) -> ("Dict[str: SequenceMatcher]", "Dict[str: Set[str]]"):
 	matchers = {}

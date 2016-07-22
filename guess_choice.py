@@ -18,7 +18,7 @@ def score_full_phrase_translations(
 		all_oovs: "Counter[str]",
 		train_target: "Counter[str]",
 		leidos_unigrams: "Counter[str]",
-		args: "argparse args",
+		scoringweights: "{str: float}",
 		debug_print: bool = False
 	) -> (str, "Tuple[float]", bool):
 	
@@ -88,15 +88,15 @@ def score_full_phrase_translations(
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		return (args.unmatchedpartweight   * -1 * nomatch_penalty,
-		        args.perfectmatchweight    *      perfectmatchbonus,
-		        args.oovcoverageweight     *      coverage,
-		        args.sourcelexrestweight   * -1 * lexrest_penalty,
-		        args.sourcepartcountweight *      part_count,
-		        args.trainingcountweight   * -1 * training_count_penalty,
-		        args.leidosfrequencyweight *      leidos_frequency,
-		        args.lengthratioweight     * -1 * lengthratio,
-		        args.resultwordcountweight * -1 * target_word_count_penalty,
+		return (weights['unmatchedpartweight']   * -1 * nomatch_penalty,
+		        weights['perfectmatchweight']    *      perfectmatchbonus,
+		        weights['oovcoverageweight']     *      coverage,
+		        weights['sourcelexrestweight']   * -1 * lexrest_penalty,
+		        weights['sourcepartcountweight'] *      part_count,
+		        weights['trainingcountweight']   * -1 * training_count_penalty,
+		        weights['leidosfrequencyweight'] *      leidos_frequency,
+		        weights['lengthratioweight']     * -1 * lengthratio,
+		        weights['resultwordcountweight'] * -1 * target_word_count_penalty,
 		        tiebreaker)
 	
 	#### ACTUAL CHOICE PROCESS

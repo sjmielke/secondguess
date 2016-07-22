@@ -42,7 +42,7 @@ def phraseguess_actual_oov(
 		all_oovs: "Counter[str]",
 		train_target: "Counter[str]",
 		leidos_unigrams: "Counter[str]",
-		args: "argparse args",
+		conf: "json config",
 		debug_print: bool = True,
 	) -> (str, float, bool):
 	
@@ -61,11 +61,11 @@ def phraseguess_actual_oov(
 		
 		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, args, debug_print)
+		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, conf['scoringweights'], debug_print)
 	
 	# Also allow full copying and deletion
-	all_translations.append(("", [args.deletionscore], cheat_guesses[oov] == ""))
-	all_translations.append((oov, [args.copyscore], cheat_guesses[oov] == oov))
+	all_translations.append(("",  [conf['scoring-weights']['deletionscore']], cheat_guesses[oov] == ""))
+	all_translations.append((oov, [conf['scoring-weights']['copyscore']],     cheat_guesses[oov] == oov))
 	
 	# Return best translation!
 	res = sorted(all_translations, key = lambda x: sum(x[1]), reverse = True)
@@ -91,3 +91,20 @@ def phraseguess_actual_oov(
 			transset.add(t)
 	
 	return dupfree_result
+
+if __name__ == "__main__":
+	conf = guess_helper.load_config(sys.argv[1])
+	
+	# First load data
+	oov_original_list = guess_helper.load_file_lines(conv['set-files']['oovfile'])
+	catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conv['set-files']['catmorffile'])
+	
+	# Then generate all phrases
+	all_phraseparts = []
+	for _, segs in catmorfdict.items():
+		all_phraseparts += itertools.chain(*gen_phrases(segs))
+	uniq_phraseparts = guess_helper.uniq_list(all_phraseparts) # uniq for unhashable lists!
+	print("Matching {} ({} unique) phrases generated from {} unique words".format(len(all_phraseparts), len(uniq_phraseparts), len(catmorfdict.keys())), flush = True, file = sys.stderr)
+	
+	# ... to stdout!
+	print("\n".join(uniq_phraseparts))
