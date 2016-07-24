@@ -22,8 +22,10 @@ def load_config(setname):
 		def replacesetname(d):
 			if isinstance(d, str):
 				return d.replace(conf['set-placeholder'], setname)
-			else
-				return {k, replacesetname(v) for k, v in d}
+			elif isinstance(d, float):
+				return d
+			else:
+				return {k: replacesetname(v) for k, v in d.items()}
 		return replacesetname(conf)
 	else:
 		return conf

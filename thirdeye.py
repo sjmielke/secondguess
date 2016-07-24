@@ -1,4 +1,3 @@
-from scoop import futures
 import itertools
 import sys # stderr
 from collections import Counter
@@ -33,7 +32,7 @@ def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
 
 def load_global_data(conf):
 	# Load dictionary
-	(matchers, translations) = guess_helper.load_dictionary(conf['global-files']['lexfile'])
+	(matchers, translations) = guess_helper.load_dictionary(conf['global-files']['lexicon'])
 	
 	# Load training data
 	train_target = Counter(" ".join(guess_helper.load_file_lines(conf['global-files']['train-target'])).split())

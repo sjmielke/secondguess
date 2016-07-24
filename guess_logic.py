@@ -1,3 +1,4 @@
+from scoop import futures, shared
 from collections import Counter
 import multiprocessing
 from contextlib import closing
@@ -34,18 +35,19 @@ def guess_actual_oovs_into(
 	) -> ((int, int), (int, int, int)):
 	# Sort
 	sorted_guessable_oovs = sorted(raw_guessable_oovs)
-	# Do
-	preproc = lambda oov: ( oov,
-	                        all_matches,
-	                        translations,
-	                        catmorfdict,
-	                        cheat_guesses,
-	                        all_raw_guessable_oovs,
-	                        train_target,
-	                        leidos_unigrams,
-	                        conf)
-	with closing(multiprocessing.Pool(processes = 4)) as pool:
-		guess_results = list(pool.starmap(guess_phrases.phraseguess_actual_oov, map(preproc, sorted_guessable_oovs)))
+	# Distribute static data
+	static_data = ( all_matches,
+	                translations,
+	                catmorfdict,
+	                cheat_guesses,
+	                all_raw_guessable_oovs,
+	                train_target,
+	                leidos_unigrams,
+	                conf)
+	shared.setConst(static_data = static_data)
+	# Here is where the SCOOP magic happens
+	guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
+	
 	all_results = sorted(zip(sorted_guessable_oovs, guess_results), key = lambda r: sum(r[1][0][1]), reverse = True)
 	
 	# What came out?

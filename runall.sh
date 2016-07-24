@@ -12,7 +12,7 @@ cd $DATADIR
 cat > pyguess.config <<- EOT
 {
 	"auto-generated-by": "runall.sh",
-	"set-placeholder": "<<SET>>"
+	"set-placeholder": "<<SET>>",
 	"global-files": {
 		"lexicon":         "$DATADIR/staticdata/${LEX}",
 		"allmatches":      "$DATADIR/data/${LEX}.fullmorfmatches",
@@ -20,7 +20,7 @@ cat > pyguess.config <<- EOT
 		"leidos-unigrams": "$DATADIR/staticdata/leidos_unigrams"
 	},
 	"set-files": {
-		"oovlist":     "$DATADIR/data/<<SET>>.sbmt.oov",
+		"oovfile":     "$DATADIR/data/<<SET>>.sbmt.oov",
 		"catmorffile": "$DATADIR/data/<<SET>>.sbmt.oov.catmorf",
 		"reffile":     "nocheatref",
 		"nefile":      "$DATADIR/staticdata/emptyfile",
@@ -89,7 +89,7 @@ done
 
 # Match all phraseparts against dictionary
 LC_COLLATE='UTF-8' sort -u data/${LEX}.all.matchable.phraseparts | \
-	python3 -m scoop ${SCOOP_HOSTS} $PYGUESSDIR/guess_matching.py
+	python3 -m scoop -vv ${SCOOP_HOSTS} $PYGUESSDIR/guess_matching.py
 # writes into "allmatches" file
 
 # Clean up the mess
@@ -106,7 +106,7 @@ date
 # Now do the actual guessing for all sets
 for set in $SETS; do
 	# Do the heavy guesswork!
-	python3 -m scoop ${SCOOP_HOSTS} $PYGUESSDIR/thirdeye.py ${set}
+	python3 -m scoop -vv ${SCOOP_HOSTS} $PYGUESSDIR/thirdeye.py mode_batch ${set}
 
 	# Now restitch them into sbmt output
 	python3 $PYGUESSDIR/tools/rejoin_oovs.py\

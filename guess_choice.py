@@ -88,15 +88,15 @@ def score_full_phrase_translations(
 		tiebreaker_hashes = list(map(hash, cand))
 		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		return (weights['unmatchedpartweight']   * -1 * nomatch_penalty,
-		        weights['perfectmatchweight']    *      perfectmatchbonus,
-		        weights['oovcoverageweight']     *      coverage,
-		        weights['sourcelexrestweight']   * -1 * lexrest_penalty,
-		        weights['sourcepartcountweight'] *      part_count,
-		        weights['trainingcountweight']   * -1 * training_count_penalty,
-		        weights['leidosfrequencyweight'] *      leidos_frequency,
-		        weights['lengthratioweight']     * -1 * lengthratio,
-		        weights['resultwordcountweight'] * -1 * target_word_count_penalty,
+		return (scoringweights['unmatchedpartweight']   * -1 * nomatch_penalty,
+		        scoringweights['perfectmatchweight']    *      perfectmatchbonus,
+		        scoringweights['oovcoverageweight']     *      coverage,
+		        scoringweights['sourcelexrestweight']   * -1 * lexrest_penalty,
+		        scoringweights['sourcepartcountweight'] *      part_count,
+		        scoringweights['trainingcountweight']   * -1 * training_count_penalty,
+		        scoringweights['leidosfrequencyweight'] *      leidos_frequency,
+		        scoringweights['lengthratioweight']     * -1 * lengthratio,
+		        scoringweights['resultwordcountweight'] * -1 * target_word_count_penalty,
 		        tiebreaker)
 	
 	#### ACTUAL CHOICE PROCESS

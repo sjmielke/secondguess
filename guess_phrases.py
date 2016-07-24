@@ -1,3 +1,4 @@
+from scoop import futures, shared
 import itertools
 import operator # mul
 import sys # stderr
@@ -35,17 +36,19 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 
 def phraseguess_actual_oov(
 		oov: str,
-		all_matches: "{str: [CandidateWord]}",
-		translations: "{str: [str]}",
-		catmorfdict: "{str: [(str, str)]}",
-		cheat_guesses: "{str: str}",
-		all_oovs: "Counter[str]",
-		train_target: "Counter[str]",
-		leidos_unigrams: "Counter[str]",
-		conf: "json config",
-		debug_print: bool = True,
+		debug_print: bool = True
 	) -> (str, float, bool):
 	
+	static_data = shared.getConst('static_data')
+	(all_matches, # {str: [CandidateWord]}
+		translations, # {str: [str]}
+		catmorfdict, # {str: [(str, str)]}
+		cheat_guesses, # {str: str}
+		all_oovs, # Counter[str]
+		train_target, # Counter[str]
+		leidos_unigrams, # Counter[str]
+		conf) = static_data
+
 	all_translations = []
 	if debug_print:
 		print("\n")
@@ -61,7 +64,7 @@ def phraseguess_actual_oov(
 		
 		all_candidates = list(itertools.product(*candidatess))
 		
-		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, conf['scoringweights'], debug_print)
+		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, conf['scoring-weights'], debug_print)
 	
 	# Also allow full copying and deletion
 	all_translations.append(("",  [conf['scoring-weights']['deletionscore']], cheat_guesses[oov] == ""))
@@ -96,8 +99,8 @@ if __name__ == "__main__":
 	conf = guess_helper.load_config(sys.argv[1])
 	
 	# First load data
-	oov_original_list = guess_helper.load_file_lines(conv['set-files']['oovfile'])
-	catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conv['set-files']['catmorffile'])
+	oov_original_list = guess_helper.load_file_lines(conf['set-files']['oovfile'])
+	catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
 	
 	# Then generate all phrases
 	all_phraseparts = []

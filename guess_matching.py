@@ -34,8 +34,10 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
 	i_o, i_w, matchlength = matcher.find_longest_match(0, len(oov), 0, len(lexword))
 	return (lexword, (i_o, i_w, matchlength))
 
-def lookup_oov(oov: str, matchers: "{str: SequenceMatcher}") -> "(str, [CandidateWord])":
+def lookup_oov(oov: str) -> "(str, [CandidateWord])":
 	print("Looking up", oov, "...", end = '', flush = True)
+	
+	matchers = shared.getConst('matchers')
 	
 	# Match search
 	nextbest_lexcandidates = []
