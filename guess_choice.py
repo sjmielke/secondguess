@@ -1,46 +1,52 @@
 import itertools
+import operator
+from functools import reduce
 from math import log
 
 import guess_helper
 
 import sys
 
-def print_dups(ss, prefix = ""):
-	s = ss #s = list(filter(lambda c: c.islegal, ss))
-	if len(list(s)) != len(list(set(s))):
-		print(prefix + "{} -> {}".format(len(list(s)), len(list(set(s)))))
-
-def score_full_phrase_translations(
+def score_full_phrase_matches(
 		fulloov: str,
-		unsorted_candidates: "[[CandidateWord]]",
-		translations: "{str: Set[str]}",
-		cheat_guesses: "{str: str}",
-		all_oovs: "Counter[str]",
-		train_target: "Counter[str]",
-		leidos_unigrams: "Counter[str]",
-		scoringweights: "{str: float}",
-		debug_print: bool = False
-	) -> (str, "Tuple[float]", bool):
+		phrase: [str],
+		static_data,
+		debug_print: bool
+	) -> "[{'translation': str, 'score': float, 'features': {str: float}, 'lexwords': str, 'candidate': (CandidateWord, str)}]":
 	
-	#### HELPER FUNCTIONS
+	(all_matches, # {str: [CandidateWord]}
+		translations, # {str: [str]}
+		catmorfdict, # {str: [(str, str)]}
+		all_oovs, # Counter[str]
+		train_target, # Counter[str]
+		leidos_unigrams, # Counter[str]
+		conf) = static_data
 	
+	candidatess = [all_matches[s] for s in phrase]
+	
+	lengths = list(map(len, candidatess))
+	statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
+	if debug_print:
+		print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
+	
+	unsorted_candidates = list(itertools.product(*candidatess))
+	
+	# First we have to evaluate the candidates into translation candidates!
 	def translate_candidate(candidate: "[CandidateWord]") -> "[[(CandidateWord, str)]]":
 		translationss = []
 		for cw in candidate:
 			cw_translations = [(cw, t) for t in translations[cw.lexword]] if cw.islegal else [(cw, cw.oov)]
-			print_dups(cw_translations, "cw_trans: ")
 			translationss.append(cw_translations)
 		result = list(itertools.product(*translationss))
 		for c in result:
 			if tuple(guess_helper.mapfst(c)) != candidate:
-				print("{} != \n{}".format(list(guess_helper.mapfst(c)), candidate))
+				print("{} != \n{}".format(list(guess_helper.mapfst(c)), candidate), file = sys.stderr)
 				exit(1)
-		#print_dups(result, "translate_candidate / result: ")
 		return result
 	
-	def get_trans(transcandidate: "[(CandidateWord, str)]") -> str:
-		return " ".join(map(lambda c: c[1], transcandidate))
+	translated_unsorted_candidates = list(itertools.chain(*list(map(translate_candidate, unsorted_candidates))))
 	
+	# Now for the actual scoring!
 	def is_already_english(s):
 		# http://stackoverflow.com/a/18403812
 		return len(s) == len(s.encode())
@@ -68,7 +74,8 @@ def score_full_phrase_translations(
 		training_count_penalty = min(map(lambda c: 0.000000005 * log(1 + train_target[c[1]]), cand))
 		
 		# average LEIDOS frequency (surrogate for both in-domain-ness and general language model!) - only works for single words
-		leidos_frequencies = list(map(lambda trans: leidos_unigrams[trans], itertools.chain(*map(lambda c: c[1].split() if c[1].split() != [] else [c[1]], cand))))
+		single_words = itertools.chain(*(c[1].split() for c in cand))
+		leidos_frequencies = [leidos_unigrams[trans] for trans in single_words]
 		leidos_frequency = 0.000000001 * sum(leidos_frequencies) / len(leidos_frequencies)
 		# reward english in-domain words
 		# -> need domain-word-list
@@ -85,50 +92,41 @@ def score_full_phrase_translations(
 		
 		target_word_count_penalty = 0.5 * (sum(map(lambda pair: len(pair[1].split()), cand)) - 1)
 		
-		tiebreaker_hashes = list(map(hash, cand))
-		tiebreaker = 0.0000000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
+		# Give a score boost if we copied a full "OOV" that was already English!
+		englishcopy = 1 if (is_already_english(fulloov) and all(cw.oov == translation for (cw, translation) in cand)) else 0
 		
-		return (scoringweights['unmatchedpartweight']   * -1 * nomatch_penalty,
-		        scoringweights['perfectmatchweight']    *      perfectmatchbonus,
-		        scoringweights['oovcoverageweight']     *      coverage,
-		        scoringweights['sourcelexrestweight']   * -1 * lexrest_penalty,
-		        scoringweights['sourcepartcountweight'] *      part_count,
-		        scoringweights['trainingcountweight']   * -1 * training_count_penalty,
-		        scoringweights['leidosfrequencyweight'] *      leidos_frequency,
-		        scoringweights['lengthratioweight']     * -1 * lengthratio,
-		        scoringweights['resultwordcountweight'] * -1 * target_word_count_penalty,
-		        tiebreaker)
+		feature_values = {'unmatchedpartweight':   -1 * nomatch_penalty,
+		                  'perfectmatchweight':         perfectmatchbonus,
+		                  'oovcoverageweight':          coverage,
+		                  'sourcelexrestweight':   -1 * lexrest_penalty,
+		                  'sourcepartcountweight':      part_count,
+		                  'trainingcountweight':   -1 * training_count_penalty,
+		                  'leidosfrequencyweight':      leidos_frequency,
+		                  'lengthratioweight':     -1 * lengthratio,
+		                  'resultwordcountweight': -1 * target_word_count_penalty,
+		                  'englishcopyboost':           englishcopy}
+		
+		scoringweights = conf['scoring-weights']
+		
+		score = 0.0
+		for feature in feature_values:
+			score += scoringweights[feature] * feature_values[feature]
+		
+		# Small tie breaker to have deterministic results
+		tiebreaker_hashes = list(map(hash, cand))
+		score += 0 * 0.00000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
+		
+		return {'translation': " ".join(cpart[1] for cpart in cand),
+		        'score': score,
+		        'features': feature_values,
+		        'lexwords': [cpart[0].lexword for cpart in cand],
+		        'candidate': cand}
 	
-	#### ACTUAL CHOICE PROCESS
-	
-	# Now, first we have to evaluate the candidates into translation candidates!
-	translated_unsorted_candidates = list(itertools.chain(*list(map(translate_candidate, unsorted_candidates))))
-	
-	print_dups(translated_unsorted_candidates)
-	# Then pick our favorite one!
-	scored = sorted(translated_unsorted_candidates, key = lambda p: sum(score_phrase(p)), reverse = True)
-	besttranscand = scored[0]
-	phrase = list(map(lambda cw: cw.oov, guess_helper.mapfst(besttranscand)))
-	
-	# First, what would the algo itself say?
-	what_the_algo_said = get_trans(besttranscand)
-	result_transcandidate = besttranscand
-	
-	# Now, can I find the "correct" solution? Then replace old result with it!
-	foundcheat = False
-	cheatsolution = cheat_guesses[fulloov]
-	for transcandidate in translated_unsorted_candidates:
-		if get_trans(transcandidate) == cheatsolution:
-			foundcheat = True
-			result_transcandidate = transcandidate
-			break
+	scored_unsorted_candidates = list(map(score_phrase, translated_unsorted_candidates))
+	scored = sorted(scored_unsorted_candidates, key = lambda c: c['score'], reverse = True)
 	
 	if debug_print:
-		# TODO prohibit inter-thread-foo
-		print(" » {} {}".format(
-			'❗' if foundcheat else ' ',
-			'=' if what_the_algo_said == cheat_guesses[fulloov] else ' '))
-		for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in result_transcandidate:
+		for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in scored[0]['candidate']:
 			if legal:
 				print("     {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
 					guess_helper.bold(oov    , oovindex, matchlength),
@@ -140,9 +138,4 @@ def score_full_phrase_translations(
 					"---",
 					oov))
 	
-	def prepare_for_output(tc):
-		return (get_trans(tc),
-		        score_phrase(tc),
-		        get_trans(tc) == what_the_algo_said and what_the_algo_said == cheat_guesses[fulloov])
-	
-	return sorted(list(map(prepare_for_output, scored)), key = lambda t: t[1], reverse = True)
+	return scored

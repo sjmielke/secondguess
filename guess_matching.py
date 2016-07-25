@@ -34,10 +34,11 @@ def get_best_match(oov: str, lexword: str, matcher: SequenceMatcher) -> (str, (i
 	i_o, i_w, matchlength = matcher.find_longest_match(0, len(oov), 0, len(lexword))
 	return (lexword, (i_o, i_w, matchlength))
 
-def lookup_oov(oov: str) -> "(str, [CandidateWord])":
+def lookup_oov(oov: str, matchers = None) -> "(str, [CandidateWord])":
 	print("Looking up", oov, "...", end = '', flush = True)
 	
-	matchers = shared.getConst('matchers')
+	if matchers == None:
+		matchers = shared.getConst('matchers')
 	
 	# Match search
 	nextbest_lexcandidates = []
@@ -49,39 +50,38 @@ def lookup_oov(oov: str) -> "(str, [CandidateWord])":
 	# First find LCS = match with lexword in a mapreduce fashion
 	all_pairs = map(lambda w: (oov, w, matchers[w]), sorted(matchers.keys()))
 	
-	individual_bestmatches = itertools.starmap(get_best_match, all_pairs)
+	individual_bestmatches = list(itertools.starmap(get_best_match, all_pairs))
 	
 	print("...", end = '', flush = True)
 	
 	# Now compare all findings!
-	for (lexword, (i_o, i_w, matchlength)) in individual_bestmatches:
-		if found_legal and (matchlength < 3 or matchlength < best_matchlength):
-			continue
-		legal = is_legal_match(lexword, i_w, matchlength)
-		if not found_legal or legal: # no legality regressions!
-			if (legal and not found_legal # we find our first legal match...
-					or matchlength > best_matchlength): # ...or a better one, regardless of legality status
-				# Also get some more
-				nextbest_lexcandidates = best_lexcandidates
-				nextbest_matchlength = best_matchlength
-				# Then update best
-				best_lexcandidates = [CandidateWord(oov, lexword, i_w, i_o, matchlength, legal)]
-				best_matchlength = matchlength
-			elif matchlength == best_matchlength: # no improvement? just add a candidate
-				best_lexcandidates.append(CandidateWord(oov, lexword, i_w, i_o, matchlength, legal))
-		if legal:
-			found_legal = True
+	all_lexcandidates = sorted([CandidateWord(oov, lexword, i_w, i_o, matchlength, is_legal_match(lexword, i_w, matchlength)) for (lexword, (i_o, i_w, matchlength)) in individual_bestmatches], key = lambda cw: cw.matchlength, reverse = True)
+	
+	if all_lexcandidates == []:
+		return (oov, [])
+	
+	best_matchlength = all_lexcandidates[0].matchlength
+	cur_matchlength  = all_lexcandidates[0].matchlength
+	cur_wordcount = 0
+	cur_wordlist = []
+	result = []
+	
+	for cw in all_lexcandidates[:500]:
+		if cw.matchlength == cur_matchlength:
+			cur_wordcount += 1
+		else:
+			cur_matchlength = cw.matchlength
+			cur_wordcount = 1
+			result += cur_wordlist
+			cur_wordlist = []
+		if cur_wordcount > 75 or cur_matchlength + 4 < best_matchlength:
+			break
+		
+		cur_wordlist.append(cw)
 	
 	print("done!", flush = True)
 	
-	# If we didn't find anything legal, guess we just copy:
-	if not found_legal or len(best_lexcandidates) > 75: # matching too much can't be right
-		return (oov, [CandidateWord(oov, oov, -1, -1, len(oov), False)])
-	elif nextbest_matchlength > 3 and nextbest_matchlength + 1 == best_matchlength and len(nextbest_lexcandidates) < 30:
-		return (oov, best_lexcandidates + nextbest_lexcandidates)
-	else:
-		return (oov, best_lexcandidates)
-
+	return (oov, result)
 
 
 if __name__ == '__main__':

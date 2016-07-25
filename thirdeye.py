@@ -1,34 +1,18 @@
+from scoop import futures, shared
+import multiprocessing
+from contextlib import closing
+from collections import Counter
 import itertools
 import sys # stderr
-from collections import Counter
-
-import guess_helper
-import guess_matching
-import guess_nes
-import guess_logic
-import guess_phrases
-
-from guess_matching import CandidateWord # to deserialize!
-
+import json
 import argparse
 import os
 
-def print_human_algo_statistics(stats: ((int, int), (int, int, int, int))):
-	ref = ""
-	# (Schema: count_human_algo)
-	((c_nn, c_ny), (c_yn, c_yw, c_yc, c_yy)) = stats
-	print("{}> {:<27} {:3} ({})".format(ref, "No human, no algo:", \
-		c_nn, "neither knew a translation"))
-	print("{}> {:<27} {:3} ({})".format(ref, "No human, but algo:", \
-		c_ny, "we're either superhuman or translated stray NEs"))
-	print("{}> {:<27} {:3} ({})".format(ref, "Human, but no algo:", \
-		c_yn, "didn't find any translation, but human did"))
-	print("{}> {:<27} {:3} ({})".format(ref, "Human, but wrong algo:", \
-		c_yw, "didn't find the human translation containing lexicon entry, but found another"))
-	print("{}> {:<27} {:3} ({})".format(ref, "Human corrected algo:", \
-		c_yc, "found the human suggestion containing lexicon entry, but wouldn't have chosen it"))
-	print("{}> {:<27} {:3} ({})".format(ref, "Human = algo:", \
-		c_yy, "found the human suggestion containing candidate and naturally chose it!"))
+import guess_helper
+import guess_matching
+import guess_phrases
+
+from guess_matching import CandidateWord # to deserialize!
 
 def load_global_data(conf):
 	# Load dictionary
@@ -45,26 +29,67 @@ def load_global_data(conf):
 	
 	return ((matchers, translations), train_target, leidos_unigrams)
 
-def prepare_guessing(oov_original_list, nes, catmorfdict, reffile):
-	# Load cheat/reference
-	if reffile == "nocheatref":
-		reffile = None
-	if reffile != None:
-		cheat_list = guess_helper.load_file_lines(reffile)
-	else:
-		cheat_list = ["THISVERYLONGANDOBSCURESTRINGSHOULDNOTBEINTHEDICTIONARY"] * len(oov_original_list)
-	cheat_guesses = dict(zip(oov_original_list, cheat_list))
-	
+def prepare_guessing(oov_original_list, catmorfdict):
 	# Start filling our guess dictionary!
 	# oov_guesses = {oov: [(guess, score)]}
 	oov_guesses = {}
+	
+	# Sort oovlist entries into non-alphabetic tokens and actual OOVs
+	guessable_oovs = Counter()
+	for w in oov_original_list:
+		# Filter out purely non-alphabetic tokens
+		if not any(c.isalpha() for c in w):
+			#print("{:<20} ~~> non-alpha token".format(w))
+			oov_guesses[w] = [{'translation': w, 'score': 1.0, }]
+		else:
+			guessable_oovs[w] += 1
+	
+	return (oov_guesses, guessable_oovs)
 
-	# Sort oovlist entries into NEs and actual OOVs
-	(guessable_nes_counter, guessable_oovs_counter) = guess_logic.get_guessables_into(oov_guesses, oov_original_list, nes)
-	# Guess NEs
-	all_ne_roots = guess_nes.guess_nes_into(oov_guesses, catmorfdict, list(guessable_nes_counter))
-
-	return (oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses)
+def guess_actual_oovs_into(
+		oov_guesses: "{str: str}",
+		all_raw_guessable_oovs: "Counter[str]",
+		all_matches: "{str: [CandidateWord]}",
+		translations: "{str: Set[str]}",
+		catmorfdict: "{str: [(str, str)]}",
+		train_target: "Counter[str]",
+		leidos_unigrams: "Counter[str]",
+		conf: "json config"
+	):
+	# Sort
+	raw_guessable_oovs = list(all_raw_guessable_oovs)
+	sorted_guessable_oovs = sorted(raw_guessable_oovs)
+	
+	# Distribute static data
+	static_data = ( all_matches,
+	                translations,
+	                catmorfdict,
+	                all_raw_guessable_oovs,
+	                train_target,
+	                leidos_unigrams,
+	                conf)
+	shared.setConst(static_data = static_data)
+	
+	# Here is where the SCOOP magic happens
+	guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
+	
+	all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: sum(r[1][0]['score']), reverse = True)
+	
+	all_translations = [(oov, candidates[0]['translation']) for (oov, candidates) in all_results]
+	oov_guesses.update(dict(all_translations))
+	
+	def print_results(t):
+		(oov, candidates) = t
+		(result, scores) = candidates[0]
+		print("{:>20} -> {:<20}".format(oov, result), end='')
+		print("{:10.7f} <- ".format(sum(scores)), end='')
+		for s in scores:
+			print(" {:10.7f}".format(s), end='')
+		print("")
+	
+	list(map(print_results, all_results[0:20]))
+	print("  [...]")
+	list(map(print_results, all_results[-20:]))
 
 
 if __name__ == '__main__':
@@ -83,28 +108,13 @@ if __name__ == '__main__':
 	if args.which == 'mode_server':
 		import morfessor
 		import bottle
-		import json
 		
-		# Load data
+		# Load static data
 		conf = guess_helper.load_config(None)
 		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
 		
 		morfmodel = morfessor.MorfessorIO().read_binary_model_file(conf['server-files']['morfmodel'])
 		print("Loaded files")
-		
-		def do_one_shot(oov_original_list):
-			catmorfdict = guess_helper.apply_list2dict(lambda w: list(zip(morfmodel.viterbi_segment(w)[0], itertools.repeat("STM"))), oov_original_list)
-			print("Segmented words into " + str(catmorfdict))
-			phraseparts = list(itertools.chain(*itertools.chain(*map(guess_phrases.gen_phrases, catmorfdict.values()))))
-			uniq_phraseparts = guess_helper.uniq_list(phraseparts) # uniq for unhashable lists!
-			all_matches = dict(itertools.starmap(guess_matching.lookup_oov, zip(uniq_phraseparts, itertools.repeat(matchers))))
-			print("Matched phraseparts " + str(phraseparts))
-			# Separate NEs and stuff
-			(oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses) \
-				= prepare_guessing(oov_original_list, [], catmorfdict, None)
-			# Then do the actual OOV guessing, while counting, how often were we "better" than the human
-			stats = guess_logic.guess_actual_oovs_into(oov_guesses, list(guessable_oovs_counter), guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, conf)
-			return oov_guesses
 		
 		# Read data and crunch
 		app = bottle.Bottle()
@@ -116,41 +126,67 @@ if __name__ == '__main__':
 		@app.route('/lookupword')
 		def crunch_word():
 			params = bottle.request.query.decode()
-			print(list(params.items()))
-			oov = params['oov']
+			import unicodedata
+			oov = unicodedata.normalize('NFKD', params['oov'])
+			oov_original_list = [oov]
+			
+			catmorfdict = {oov: list(zip(morfmodel.viterbi_segment(oov)[0], itertools.repeat("STM")))}
+			print("Segmented words into " + str(catmorfdict))
+			
+			phraseparts = list(itertools.chain(*itertools.chain(*map(guess_phrases.gen_phrases, catmorfdict.values()))))
+			uniq_phraseparts = guess_helper.uniq_list(phraseparts) # uniq for unhashable lists!
+			
+			all_matches = dict(itertools.starmap(guess_matching.lookup_oov, zip(uniq_phraseparts, itertools.repeat(matchers))))
+			print("Matched phraseparts " + str(phraseparts))
+			
+			(oov_guesses, guessable_oovs_counter) = prepare_guessing(oov_original_list, catmorfdict)
+			
+			# If it wasn't a non-OOV, do the painful thing
+			if oov_guesses == {}:
+				static_data = ( all_matches,
+				                translations,
+				                catmorfdict,
+				                guessable_oovs_counter,
+				                train_target,
+				                leidos_unigrams,
+				                conf)
+				oov_guesses[oov] = guess_phrases.phraseguess_actual_oov(oov, static_data = static_data)[:100]
+			
 			bottle.response.content_type = 'application/json'
-			oov_guesses = do_one_shot([oov])
 			return json.dumps(oov_guesses[oov])
+		
 		bottle.run(app, host='localhost', port=8080)
 
 	elif args.which == 'mode_batch':
-		# Load data
+		# Load static data
 		conf = guess_helper.load_config(args.setname)
 		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
+		
 		oov_original_list = guess_helper.load_file_lines(conf['set-files']['oovfile'])
 		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
-		nes = list(guess_helper.load_file_lines(conf['set-files']['nefile'])) # Load NE list -> apparently untokenized! sucks e.g. for Mosoni-Dunaig
 		
 		# Load previously calculated matches
 		with open(conf['global-files']['allmatches']) as f:
 			all_matches = eval(f.read())
 		
 		# Prepare guessing data
-		(oov_guesses, (guessable_nes_counter, guessable_oovs_counter), cheat_guesses) \
-			= prepare_guessing(oov_original_list, nes, catmorfdict, conf['set-files']['reffile'])
-		print("{} distinct NEs and {} distinct OOVs to guess.".format(len(guessable_nes_counter), len(guessable_oovs_counter)), file = sys.stderr)
-		
-		uniq_oov_list = list(guessable_oovs_counter)
+		(oov_guesses, guessable_oovs_counter) = prepare_guessing(oov_original_list, catmorfdict)
+		print("{} distinct OOVs to guess.".format(len(guessable_oovs_counter)), file = sys.stderr)
 		
 		# Guess batch
-		stats = guess_logic.guess_actual_oovs_into(oov_guesses, uniq_oov_list, guessable_oovs_counter, all_matches, translations, catmorfdict, cheat_guesses, train_target, leidos_unigrams, conf)
-		
-		print_human_algo_statistics(stats)
+		guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, train_target, leidos_unigrams, conf)
 		
 		# Write our results in original order into result file
-		with open(conf['set-files']['1best-out'], 'w') as translist:
+		with open(conf['set-files']['1best-out'], 'w') as f:
 			for oov in oov_original_list:
-				print(oov_guesses[oov][0][0], file=translist)
+				print(oov_guesses[oov][0]['translation'], file=f)
+		
+		def nbest(t):
+			oov, candidates = t
+			return (oov, candidates[:10])
+		
+		with open(conf['set-files']['nbest-out'], 'w') as f:
+			print(json.dumps(dict(map(nbest, oov_guesses.items()))), file=f)
 	else:
 		print("Unknown mode", args.which)
 		exit(1)

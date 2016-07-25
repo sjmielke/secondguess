@@ -48,14 +48,5 @@ def load_catmorfdict(oov_original_list, morffile):
 def mapfst(l):
 	return tuple(map(lambda x: tuple(x)[0], l))
 
-def apply_list2dict(f, l):
-	return dict(zip(l, map(f, l)))
-
 def uniq_list(l):
 	return [k for k,v in itertools.groupby(sorted(l))]
-
-def tupleadd(x, y):
-	if isinstance(x, int):
-		return x + y
-	else:
-		return tuple(map(tupleadd, x, y))

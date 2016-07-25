@@ -1,10 +1,10 @@
 #! /bin/env bash
 
-      SETS="syscomb eval  dev domain test uroom"
-SBMTSYSTEM="isi-sbmt-v5-comparelm"
+      SETS="syscomb dev domain test uroom devdomain domain2 eval"
+SBMTSYSTEM="isi-sbmt-v5-uzb"
    DATADIR="/home/nlg-05/sjm_445/uyghur/on_top_of/$SBMTSYSTEM"
 PYGUESSDIR="/home/nlg-05/sjm_445/pyguess"
-       LEX="guessing_input_lexicon.v12"
+       LEX="guessing_input_lexicon.v13"
 
 set -e
 cd $DATADIR
@@ -22,12 +22,11 @@ cat > pyguess.config <<- EOT
 	"set-files": {
 		"oovfile":     "$DATADIR/data/<<SET>>.sbmt.oov",
 		"catmorffile": "$DATADIR/data/<<SET>>.sbmt.oov.catmorf",
-		"reffile":     "nocheatref",
-		"nefile":      "$DATADIR/staticdata/emptyfile",
-		"1best-out":   "$DATADIR/data/<<SET>>.sbmt.oov.trans_thirdeye"
+		"1best-out":   "$DATADIR/data/<<SET>>.sbmt.oov.guesses.1best.hyp",
+		"nbest-out":   "$DATADIR/data/<<SET>>.sbmt.oov.guesses.nbest.json"
 	},
 	"server-files": {
-		"morfmodel": "staticdata/binary-baseline-model"
+		"morfmodel": "$DATADIR/staticdata/binary-baseline-model"
 	},
 	"scoring-weights": {
 		"unmatchedpartweight":   1.0,
@@ -39,6 +38,7 @@ cat > pyguess.config <<- EOT
 		"leidosfrequencyweight": 0.9,
 		"lengthratioweight":     0.4,
 		"resultwordcountweight": 5.0,
+		"englishcopyboost":      50.0,
 		"deletionscore":        -10.0,
 		"copyscore":            -5.0
 	}
@@ -47,8 +47,13 @@ EOT
 
 source /usr/usc/python/3.5.1/setup.sh
 
-if [ -n "${PBS_NODELIST}" ]; then
-	SCOOP_HOSTS="--hostfile ${PBS_NODELIST}"
+if [ -n "${PBS_NODEFILE}" ]; then
+	hosts1=$(mktemp)
+	hostsn=$(mktemp)
+	uniq ${PBS_NODEFILE} > $hosts1
+	cat $hosts1 $hosts1 $hosts1 $hosts1 > $hostsn
+	SCOOP_HOSTS="--host $(cat $hostsn) -n $(cat $hostsn | wc -l)"
+	rm $hosts1 $hostsn
 fi
 
 wait-for-file ()
@@ -89,7 +94,7 @@ done
 
 # Match all phraseparts against dictionary
 LC_COLLATE='UTF-8' sort -u data/${LEX}.all.matchable.phraseparts | \
-	python3 -m scoop -vv ${SCOOP_HOSTS} $PYGUESSDIR/guess_matching.py
+	python3 -m scoop -vv $(echo -n ${SCOOP_HOSTS}) $PYGUESSDIR/guess_matching.py
 # writes into "allmatches" file
 
 # Clean up the mess
@@ -106,12 +111,12 @@ date
 # Now do the actual guessing for all sets
 for set in $SETS; do
 	# Do the heavy guesswork!
-	python3 -m scoop -vv ${SCOOP_HOSTS} $PYGUESSDIR/thirdeye.py mode_batch ${set}
+	python3 -m scoop -vv $(echo -n ${SCOOP_HOSTS}) $PYGUESSDIR/thirdeye.py mode_batch ${set}
 
 	# Now restitch them into sbmt output
 	python3 $PYGUESSDIR/tools/rejoin_oovs.py\
 		inputdata/${set}.sbmt.align\
-		data/${set}.sbmt.oov.trans_thirdeye\
+		data/${set}.sbmt.oov.guesses.1best.hyp\
 		data/${set}.sbmt.guessed.tok
 
 	# Detokenize and stuff

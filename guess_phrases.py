@@ -7,8 +7,10 @@ from functools import reduce
 import guess_helper
 import guess_choice
 
+# TODO: proper suffix handling!
 def no_useless_suffix(s):
-	return s not in ["ماق", "ىش", "دى", "تى", "دۇ", "تۇ", "دۈ", "تۈ", "غان", "قان", "گەن", "كەن", "غۇز", "قۇز", "گۈز", "كۇز", "دۇر", "تۇر", "دۈر", "تۈر", "لار", "لەر", "لىر", "نى", "لىق", "لىك", "لۇق", "لۈك", "سى", "ى", "كى", "مۇ", "مۇ", "ئىدى"]
+	return True
+	#return s not in ["ماق", "ىش", "دى", "تى", "دۇ", "تۇ", "دۈ", "تۈ", "غان", "قان", "گەن", "كەن", "غۇز", "قۇز", "گۈز", "كۇز", "دۇر", "تۇر", "دۈر", "تۈر", "لار", "لەر", "لىر", "نى", "لىق", "لىك", "لۇق", "لۈك", "سى", "ى", "كى", "مۇ", "مۇ", "ئىدى"]
 
 def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	segs_texts = list(guess_helper.mapfst(segments))
@@ -29,69 +31,57 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]
 		phrase = ("".join(list(filter(no_useless_suffix, components)))).split()
 		if phrase != [] and len(phrase) <= 4:
-			#print("   ", phrase)
 			result.append(phrase)
 	
 	return sorted(guess_helper.uniq_list(result))
 
 def phraseguess_actual_oov(
 		oov: str,
-		debug_print: bool = True
-	) -> (str, float, bool):
+		static_data = None, # populated only when called as server
+		debug_print: bool = False
+	) -> [(str, float, bool)]:
 	
-	static_data = shared.getConst('static_data')
+	if static_data == None:
+		static_data = shared.getConst('static_data')
+	
 	(all_matches, # {str: [CandidateWord]}
 		translations, # {str: [str]}
 		catmorfdict, # {str: [(str, str)]}
-		cheat_guesses, # {str: str}
 		all_oovs, # Counter[str]
 		train_target, # Counter[str]
 		leidos_unigrams, # Counter[str]
 		conf) = static_data
-
-	all_translations = []
+	
 	if debug_print:
 		print("\n")
-	for phrase in gen_phrases(catmorfdict[oov]):
-		candidatess = []
-		for phrase_segment in phrase:
-			candidatess.append(all_matches[phrase_segment])
-		
-		lengths = list(map(len, candidatess))
-		statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
-		if debug_print:
-			print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
-		
-		all_candidates = list(itertools.product(*candidatess))
-		
-		all_translations += guess_choice.score_full_phrase_translations(oov, all_candidates, translations, cheat_guesses, all_oovs, train_target, leidos_unigrams, conf['scoring-weights'], debug_print)
+	
+	data = [(oov, phrase, static_data, debug_print) for phrase in gen_phrases(catmorfdict[oov])]
+	
+	all_translations = list(itertools.chain(*list(itertools.starmap(guess_choice.score_full_phrase_matches, data))))
 	
 	# Also allow full copying and deletion
-	all_translations.append(("",  [conf['scoring-weights']['deletionscore']], cheat_guesses[oov] == ""))
-	all_translations.append((oov, [conf['scoring-weights']['copyscore']],     cheat_guesses[oov] == oov))
+	all_translations.append({'translation': "",
+	                         'score': conf['scoring-weights']['deletionscore'],
+	                         'features': {'deletionscore': conf['scoring-weights']['deletionscore']},
+	                         'lexwords': ""})
+	all_translations.append({'translation': oov,
+	                         'score': conf['scoring-weights']['copyscore'],
+	                         'features': {'copyscore': conf['scoring-weights']['copyscore']},
+	                         'lexwords': ""})
 	
 	# Return best translation!
-	res = sorted(all_translations, key = lambda x: sum(x[1]), reverse = True)
-	
-	# Or the correct one, if it was returned
-	for (t, score, aeh) in all_translations:
-		if t == cheat_guesses[oov]:
-			res = [(t, score, aeh)]
-	
-	# Or return the word itself, if the OOV wasn't arabic script!
-	if not any(map(lambda c: ord(c) >= 1536 and ord(c) <= 1791, oov)):
-		res = [(oov, [1.0 + sum(res[0][1])], cheat_guesses[oov] == oov)] + res
+	result = sorted(all_translations, key = lambda x: x['score'], reverse = True)
 	
 	if debug_print:
-		print(" « {} {:<30}".format('=' if res[0][2] else ' ', res[0][0]))
+		print(" « {:<30}".format(result[0]['translation']))
 	
 	# Filter duplicate hypotheses, keep best one
 	transset = set()
 	dupfree_result = []
-	for (t, scores, aeh) in res:
-		if t not in transset:
-			dupfree_result.append((t, scores, aeh))
-			transset.add(t)
+	for d in result:
+		if d['translation'] not in transset:
+			dupfree_result.append(d)
+			transset.add(d['translation'])
 	
 	return dupfree_result
 

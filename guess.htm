@@ -125,13 +125,14 @@ a.translation {
             newP.className = "translation";
             newP.id = "word" + i + "translation" + j;
             newP.addEventListener('click', getHighlightFunction("word" + i + "translation" + j));
-            newP.appendChild(document.createTextNode(result[j][0]));
-            if(result[j][1] > 0.1)
+            newP.appendChild(document.createTextNode(result[j]['translation']));
+            newP.setAttribute('title', result[j]['score'])
+            if(result[j]['score'] > 0.1)
               newP.style.opacity = 1.0;
-            else if (result[j][1] < 0.0)
+            else if (result[j]['score'] < 0.0)
               newP.style.opacity = 0.2;
             else
-              newP.style.opacity = 0.2 + 8.0 * result[j][1];
+              newP.style.opacity = 0.2 + 8.0 * result[j]['score'];
             wordNode.appendChild(newP);
           }
           activateWordNode(i + 1, n);
@@ -144,7 +145,7 @@ a.translation {
     function guessSentence() {
       // Prepare word nodes
       document.getElementById("contentarea").innerHTML = "";
-      var words = document.getElementById("sentence_input").value.split(/\s+/);
+      var words = document.getElementById("sentence_input").value.trim().split(/\s+/);
       for (var i = 0; i < words.length; ++i) {
         wordNode = createWordNode(words[i]);
         wordNode.id = "word" + i;
