@@ -1,6 +1,6 @@
 #! /bin/env bash
 
-      SETS="syscomb dev domain test uroom devdomain domain2 eval"
+      SETS="syscomb dev domain test uroom devdomain domain2" # eval"
 SBMTSYSTEM="isi-sbmt-v5-uzb"
    DATADIR="/home/nlg-05/sjm_445/uyghur/on_top_of/$SBMTSYSTEM"
 PYGUESSDIR="/home/nlg-05/sjm_445/pyguess"
@@ -129,7 +129,7 @@ for set in $SETS; do
 	detok data/${set}.sbmt.guessed.tok
 
 	# Prepare packages for upload
-	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh data/${set}.sbmt.guessed.detok staticdata/package/elisa.il3-eng.${set}.y1r1.*.xml.gz data/${SBMTSYSTEM}-guess.il3-eng.${set}.y1r1.v1.xml.gz;
+	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh data/${set}.sbmt.guessed.detok staticdata/package/extracted/ staticdata/package/elisa.il3-eng.${set}.y1r1.*.xml.gz data/${SBMTSYSTEM}-guess.il3-eng.${set}.y1r1.v1.xml.gz
 
 	# Compare against pure SBMT output!
 	python3 $PYGUESSDIR/tools/rejoin_oovs.py\
@@ -142,7 +142,7 @@ for set in $SETS; do
 	# Calculate BLEU scores
 	reffile=/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/$set.target.orig
 	if [ -s $reffile ]; then
-		date > data/${set}.bleu_results.txt
+		date >> data/${set}.bleu_results.txt
 		for lc in 0 1; do
 			echo "LC: $lc" >> data/${set}.bleu_results.txt
 			
@@ -151,6 +151,6 @@ for set in $SETS; do
 			done
 		done
 	else
-		echo "No BLEU calculatable, since $reffile doesn't exist." > data/${set}.bleu_results.txt
+		echo "No BLEU calculatable, since $reffile doesn't exist." >> data/${set}.bleu_results.txt
 	fi
 done

@@ -43,7 +43,7 @@ def prepare_guessing(oov_original_list, catmorfdict):
 		# Filter out purely non-alphabetic tokens
 		if not any(c.isalpha() for c in w):
 			#print("{:<20} ~~> non-alpha token".format(w))
-			oov_guesses[w] = [{'translation': w, 'score': 1.0, }]
+			oov_guesses[w] = [{'translation': w, 'score': 1.0, 'features': []}]
 		else:
 			guessable_oovs[w] += 1
 	
@@ -153,17 +153,13 @@ if __name__ == '__main__':
 		# Here is where the SCOOP magic happens
 		guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
 		
-		all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: sum(r[1][0]['score']), reverse = True)
-		
-		all_translations = [(oov, candidates[0]['translation']) for (oov, candidates) in all_results]
-		oov_guesses.update(dict(all_translations))
+		all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: r[1][0]['score'], reverse = True)
 		
 		def print_results(t):
 			(oov, candidates) = t
-			(result, scores) = candidates[0]
-			print("{:>20} -> {:<20}".format(oov, result), end='')
-			print("{:10.7f} <- ".format(sum(scores)), end='')
-			for s in scores:
+			print("{:>20} -> {:<20}".format(oov, candidates[0]['translation']), end='')
+			print("{:10.7f} <- ".format(candidates[0]['score']), end='')
+			for s in candidates[0]['features'].values():
 				print(" {:10.7f}".format(s), end='')
 			print("")
 		
@@ -171,18 +167,19 @@ if __name__ == '__main__':
 		print("  [...]")
 		list(map(print_results, all_results[-20:]))
 		
+		oov_guesses.update(dict(all_results))
 		
 		# Write our results in original order into result file
 		with open(conf['set-files']['1best-out'], 'w') as f:
 			for oov in oov_original_list:
-				print(oov_guesses[oov][0]['translation'], file=f)
+				print(oov_guesses[oov][0]['translation'], file = f)
 		
 		def nbest(t):
 			oov, candidates = t
 			return (oov, candidates[:10])
 		
 		with open(conf['set-files']['nbest-out'], 'w') as f:
-			print(json.dumps(dict(map(nbest, oov_guesses.items()))), file=f)
+			print(json.dumps(dict(map(nbest, oov_guesses.items()))), file = f)
 	else:
 		print("Unknown mode", args.which)
 		exit(1)
