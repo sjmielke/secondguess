@@ -127,7 +127,7 @@ if __name__ == '__main__':
 		def crunch_word():
 			params = bottle.request.query.decode()
 			import unicodedata
-			oov = unicodedata.normalize('NFKD', params['oov'])
+			oov = guess_helper.uninorm(params['oov'])
 			oov_original_list = [oov]
 			
 			catmorfdict = {oov: list(zip(morfmodel.viterbi_segment(oov)[0], itertools.repeat("STM")))}
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 		
 		# Load previously calculated matches
 		with open(conf['global-files']['allmatches']) as f:
-			all_matches = eval(f.read())
+			all_matches = eval(guess_helper.uninorm(f.read()))
 		
 		# Prepare guessing data
 		(oov_guesses, guessable_oovs_counter) = prepare_guessing(oov_original_list, catmorfdict)

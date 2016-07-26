@@ -2,6 +2,10 @@ import itertools
 import json
 from difflib import SequenceMatcher
 from collections import defaultdict
+import unicodedata
+
+def uninorm(s: str):
+	return unicodedata.normalize('NFKC', s)
 
 def bold(s: str, i: int, k: int) -> str:
 	return "\x1b[2m" + s[0:i] + "\x1b[1m" + s[i:i+k] + "\x1b[2m" + s[i+k:] + "\x1b[0m"
@@ -9,13 +13,13 @@ def bold(s: str, i: int, k: int) -> str:
 def load_file_lines(path: str) -> [str]:
 	ls = []
 	with open(path) as f:
-		ls = f.read().splitlines()
+		ls = uninorm(f.read()).splitlines()
 	return ls
 
 def load_config(setname):
 	# Load pure JSON dict
 	with open("pyguess.config") as f:
-		conf = json.loads(f.read())
+		conf = json.loads(uninorm(f.read()))
 	
 	# Insert specific setname
 	if setname != None:

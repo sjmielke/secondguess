@@ -90,13 +90,13 @@ if __name__ == '__main__':
 	(matchers, _) = guess_helper.load_dictionary(conf['global-files']['lexicon'])
 	shared.setConst(matchers = matchers)
 	
-	all_uniq_phraseparts = sys.stdin.read().splitlines()
+	all_uniq_phraseparts = guess_helper.uninorm(sys.stdin.read()).splitlines()
 	print("Found", len(all_uniq_phraseparts), "phraseparts...", file = sys.stderr)
 	
 	# Filter those out that are already present in the matchfile
 	try:
 		with open(conf['global-files']['allmatches']) as f:
-			prev_matches = eval(f.read())
+			prev_matches = eval(guess_helper.uninorm(f.read()))
 	except:
 		prev_matches = {}
 	
