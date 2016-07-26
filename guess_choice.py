@@ -4,6 +4,7 @@ from functools import reduce
 from math import log
 
 import guess_helper
+import guess_matching
 
 import sys
 
@@ -20,9 +21,19 @@ def score_full_phrase_matches(
 		all_oovs, # Counter[str]
 		train_target, # Counter[str]
 		leidos_unigrams, # Counter[str]
+		(adjectivizers, prefixers, suffixers, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], {str: str})
 		conf) = static_data
 	
-	candidatess = [all_matches[s] for s in phrase]
+	def new_cw_for(foreign: str, is_legal = True):
+		return guess_matching.CandidateWord(foreign, foreign, 0, 0, len(foreign), is_legal)
+	
+	candidatess = []
+	for s in phrase:
+		cw_list = all_matches[s]
+		if any(p[0] == s for p in prefixers + suffixers):
+			cw_list.append(new_cw_for(s, is_legal = False))
+		candidatess.append(cw_list)
+	candidatess = guess_helper.uniq_list(candidatess)
 	
 	lengths = list(map(len, candidatess))
 	statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
@@ -31,18 +42,27 @@ def score_full_phrase_matches(
 	
 	unsorted_candidates = list(itertools.product(*candidatess))
 	
+	
 	# First we have to evaluate the candidates into translation candidates!
-	def translate_candidate(candidate: "[CandidateWord]") -> "[[(CandidateWord, str)]]":
-		translationss = []
+	def translate_candidate(candidate: "[CandidateWord]") -> "[([CandidateWord], [str])]":
+		candwordss  = [[]]
+		transwordss = [[]]
 		for cw in candidate:
-			cw_translations = [(cw, t) for t in translations[cw.lexword]] if cw.islegal else [(cw, cw.oov)]
-			translationss.append(cw_translations)
-		result = list(itertools.product(*translationss))
-		for c in result:
-			if tuple(guess_helper.mapfst(c)) != candidate:
-				print("{} != \n{}".format(list(guess_helper.mapfst(c)), candidate), file = sys.stderr)
-				exit(1)
-		return result
+			transword_options = [t for t in translations[cw.lexword]] if cw.islegal else [cw.oov]
+			
+			new_candwordss  = [oldcandwords  + [cw]     for oldcandwords  in candwordss  for _      in transword_options]
+			new_transwordss = [oldtranswords + [option] for oldtranswords in transwordss for option in transword_options]
+			
+			prefix_opts = [p for p in prefixers if p[0] == cw.oov]
+			suffix_opts = [p for p in suffixers if p[0] == cw.oov]
+			
+			dnew_candwordss   = [oldcandwords   + [new_cw_for(p[0])] for oldcandwords  in candwordss  for p in prefix_opts + suffix_opts]
+			dnew_transwordss  = [[p[1].strip()] + oldtranswords      for oldtranswords in transwordss for p in prefix_opts]
+			dnew_transwordss += [oldtranswords  + [p[1].strip()]     for oldtranswords in transwordss for p in suffix_opts]
+			
+			candwordss  = new_candwordss  + dnew_candwordss
+			transwordss = new_transwordss + dnew_transwordss
+		return [(candwords, transwords) for (candwords, transwords) in zip(candwordss, transwordss)]
 	
 	translated_unsorted_candidates = list(itertools.chain(*list(map(translate_candidate, unsorted_candidates))))
 	
@@ -51,8 +71,8 @@ def score_full_phrase_matches(
 		# http://stackoverflow.com/a/18403812
 		return len(s) == len(s.encode())
 	
-	def score_phrase(cand: "[(CandidateWord, str)]") -> float:
-		cws = list(guess_helper.mapfst(cand))
+	def score_phrase(cand: "([CandidateWord], [str])") -> float:
+		(cws, transwords) = cand
 		
 		# SOURCE SIDE FEATURES
 		
@@ -71,10 +91,10 @@ def score_full_phrase_matches(
 		# TARGET SIDE FEATURES
 		
 		# reward new english words (justified OOVs) - more precise: words that contain new stuff!
-		training_count_penalty = min(map(lambda c: 0.000000005 * log(1 + train_target[c[1]]), cand))
+		training_count_penalty = min([0.000000005 * log(1 + train_target[tw]) for tw in transwords])
 		
 		# average LEIDOS frequency (surrogate for both in-domain-ness and general language model!) - only works for single words
-		single_words = itertools.chain(*(c[1].split() for c in cand))
+		single_words = itertools.chain(*(tw.split() for tw in transwords))
 		leidos_frequencies = [leidos_unigrams[trans] for trans in single_words]
 		leidos_frequency = 0.000000001 * sum(leidos_frequencies) / len(leidos_frequencies)
 		# reward english in-domain words
@@ -85,15 +105,15 @@ def score_full_phrase_matches(
 		# -> need a good english LM
 		
 		# We want the english to be about as long as the input!
-		inp_length = sum(map(lambda pair: len(pair[0].oov), cand))
-		out_length = sum(map(lambda pair: len(pair[1]), cand))
+		inp_length = sum([len(cw.oov) for cw in cws])
+		out_length = sum([len(tw)     for tw in transwords])
 		# Data says english ~ 0.75 * uyghur
 		lengthratio = 0.0000005 * abs(log(0.75 * (inp_length+0.00000001)/(out_length+0.00000001)))
 		
-		target_word_count_penalty = 0.5 * (sum(map(lambda pair: len(pair[1].split()), cand)) - 1)
+		target_word_count_penalty = 0.5 * (sum([len(tw.split()) for tw in transwords]) - 1)
 		
 		# Give a score boost if we copied a full "OOV" that was already English!
-		englishcopy = 1 if (is_already_english(fulloov) and all(cw.oov == translation for (cw, translation) in cand)) else 0
+		is_englishcopy = is_already_english(fulloov) and len(cws) == 1 and len(transwords) == 1 and cws[0].oov == transwords[0]
 		
 		feature_values = {'unmatchedpartweight':   -1 * nomatch_penalty,
 		                  'perfectmatchweight':         perfectmatchbonus,
@@ -104,7 +124,7 @@ def score_full_phrase_matches(
 		                  'leidosfrequencyweight':      leidos_frequency,
 		                  'lengthratioweight':     -1 * lengthratio,
 		                  'resultwordcountweight': -1 * target_word_count_penalty,
-		                  'englishcopyboost':           englishcopy}
+		                  'englishcopyboost':           (1 if is_englishcopy else 0)}
 		
 		scoringweights = conf['scoring-weights']
 		
@@ -113,13 +133,13 @@ def score_full_phrase_matches(
 			score += scoringweights[feature] * feature_values[feature]
 		
 		# Small tie breaker to have deterministic results
-		tiebreaker_hashes = list(map(hash, cand))
-		score += 0 * 0.00000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
+		tiebreaker_hashes = list(map(hash, transwords))
+		score += 0.000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
-		return {'translation': " ".join(cpart[1] for cpart in cand),
+		return {'translation': " ".join(transwords),
 		        'score': score,
 		        'features': feature_values,
-		        'lexwords': [cpart[0].lexword for cpart in cand],
+		        'lexwords': [cw.lexword for cw in cws],
 		        'candidate': cand}
 	
 	scored_unsorted_candidates = list(map(score_phrase, translated_unsorted_candidates))

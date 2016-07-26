@@ -17,7 +17,9 @@ cat > pyguess.config <<- EOT
 		"lexicon":         "$DATADIR/staticdata/${LEX}",
 		"allmatches":      "$DATADIR/data/${LEX}.fullmorfmatches",
 		"train-target":    "$DATADIR/staticdata/train.target.agile",
-		"leidos-unigrams": "$DATADIR/staticdata/leidos_unigrams"
+		"leidos-unigrams": "$DATADIR/staticdata/leidos_unigrams",
+		"grammar":         "$DATADIR/staticdata/grammar.uig-v04.txt",
+		"pertainyms":      "$DATADIR/staticdata/english.pertainyms.txt"
 	},
 	"set-files": {
 		"oovfile":     "$DATADIR/data/<<SET>>.sbmt.oov",

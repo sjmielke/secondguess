@@ -27,7 +27,10 @@ def load_global_data(conf):
 	unigramlines = [(l.split()[1], int(l.split()[0])) for l in unigramlines] # parse `uniq -c` output
 	leidos_unigrams = Counter(dict(unigramlines))
 	
-	return ((matchers, translations), train_target, leidos_unigrams)
+	# Load grammar
+	(adjectivizers, prefixers, suffixers, noun_adjective_dict) = guess_helper.load_grammar(conf['global-files']['grammar'], conf['global-files']['pertainyms'])
+	
+	return ((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict))
 
 def prepare_guessing(oov_original_list, catmorfdict):
 	# Start filling our guess dictionary!
@@ -45,51 +48,6 @@ def prepare_guessing(oov_original_list, catmorfdict):
 			guessable_oovs[w] += 1
 	
 	return (oov_guesses, guessable_oovs)
-
-def guess_actual_oovs_into(
-		oov_guesses: "{str: str}",
-		all_raw_guessable_oovs: "Counter[str]",
-		all_matches: "{str: [CandidateWord]}",
-		translations: "{str: Set[str]}",
-		catmorfdict: "{str: [(str, str)]}",
-		train_target: "Counter[str]",
-		leidos_unigrams: "Counter[str]",
-		conf: "json config"
-	):
-	# Sort
-	raw_guessable_oovs = list(all_raw_guessable_oovs)
-	sorted_guessable_oovs = sorted(raw_guessable_oovs)
-	
-	# Distribute static data
-	static_data = ( all_matches,
-	                translations,
-	                catmorfdict,
-	                all_raw_guessable_oovs,
-	                train_target,
-	                leidos_unigrams,
-	                conf)
-	shared.setConst(static_data = static_data)
-	
-	# Here is where the SCOOP magic happens
-	guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
-	
-	all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: sum(r[1][0]['score']), reverse = True)
-	
-	all_translations = [(oov, candidates[0]['translation']) for (oov, candidates) in all_results]
-	oov_guesses.update(dict(all_translations))
-	
-	def print_results(t):
-		(oov, candidates) = t
-		(result, scores) = candidates[0]
-		print("{:>20} -> {:<20}".format(oov, result), end='')
-		print("{:10.7f} <- ".format(sum(scores)), end='')
-		for s in scores:
-			print(" {:10.7f}".format(s), end='')
-		print("")
-	
-	list(map(print_results, all_results[0:20]))
-	print("  [...]")
-	list(map(print_results, all_results[-20:]))
 
 
 if __name__ == '__main__':
@@ -111,7 +69,7 @@ if __name__ == '__main__':
 		
 		# Load static data
 		conf = guess_helper.load_config(None)
-		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
+		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict)) = load_global_data(conf)
 		
 		morfmodel = morfessor.MorfessorIO().read_binary_model_file(conf['server-files']['morfmodel'])
 		print("Loaded files")
@@ -149,6 +107,7 @@ if __name__ == '__main__':
 				                guessable_oovs_counter,
 				                train_target,
 				                leidos_unigrams,
+				                (adjectivizers, prefixers, suffixers, noun_adjective_dict),
 				                conf)
 				oov_guesses[oov] = guess_phrases.phraseguess_actual_oov(oov, static_data = static_data)[:100]
 			
@@ -160,7 +119,7 @@ if __name__ == '__main__':
 	elif args.which == 'mode_batch':
 		# Load static data
 		conf = guess_helper.load_config(args.setname)
-		((matchers, translations), train_target, leidos_unigrams) = load_global_data(conf)
+		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict)) = load_global_data(conf)
 		
 		oov_original_list = guess_helper.load_file_lines(conf['set-files']['oovfile'])
 		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
@@ -174,7 +133,44 @@ if __name__ == '__main__':
 		print("{} distinct OOVs to guess.".format(len(guessable_oovs_counter)), file = sys.stderr)
 		
 		# Guess batch
-		guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, train_target, leidos_unigrams, conf)
+		#guess_actual_oovs_into(oov_guesses, guessable_oovs_counter, all_matches, translations, catmorfdict, train_target, leidos_unigrams, conf)
+		
+		# Sort
+		raw_guessable_oovs = list(guessable_oovs_counter)
+		sorted_guessable_oovs = sorted(raw_guessable_oovs)
+		
+		# Distribute static data
+		static_data = ( all_matches,
+		                translations,
+		                catmorfdict,
+		                guessable_oovs_counter,
+		                train_target,
+		                leidos_unigrams,
+		                (adjectivizers, prefixers, suffixers, noun_adjective_dict),
+		                conf)
+		shared.setConst(static_data = static_data)
+		
+		# Here is where the SCOOP magic happens
+		guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
+		
+		all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: sum(r[1][0]['score']), reverse = True)
+		
+		all_translations = [(oov, candidates[0]['translation']) for (oov, candidates) in all_results]
+		oov_guesses.update(dict(all_translations))
+		
+		def print_results(t):
+			(oov, candidates) = t
+			(result, scores) = candidates[0]
+			print("{:>20} -> {:<20}".format(oov, result), end='')
+			print("{:10.7f} <- ".format(sum(scores)), end='')
+			for s in scores:
+				print(" {:10.7f}".format(s), end='')
+			print("")
+		
+		list(map(print_results, all_results[0:20]))
+		print("  [...]")
+		list(map(print_results, all_results[-20:]))
+		
 		
 		# Write our results in original order into result file
 		with open(conf['set-files']['1best-out'], 'w') as f:

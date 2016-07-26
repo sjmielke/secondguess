@@ -7,11 +7,6 @@ from functools import reduce
 import guess_helper
 import guess_choice
 
-# TODO: proper suffix handling!
-def no_useless_suffix(s):
-	return True
-	#return s not in ["ماق", "ىش", "دى", "تى", "دۇ", "تۇ", "دۈ", "تۈ", "غان", "قان", "گەن", "كەن", "غۇز", "قۇز", "گۈز", "كۇز", "دۇر", "تۇر", "دۈر", "تۈر", "لار", "لەر", "لىر", "نى", "لىق", "لىك", "لۇق", "لۈك", "سى", "ى", "كى", "مۇ", "مۇ", "ئىدى"]
-
 def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	segs_texts = list(guess_helper.mapfst(segments))
 	
@@ -29,7 +24,7 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 	result = []
 	for sl in itertools.product(*([["", " "]] * (len(segs_texts) - 1))):
 		components = list(itertools.chain(*zip(segs_texts, sl))) + [segs_texts[-1]]
-		phrase = ("".join(list(filter(no_useless_suffix, components)))).split()
+		phrase = ("".join(components)).split()
 		if phrase != [] and len(phrase) <= 4:
 			result.append(phrase)
 	
@@ -50,6 +45,7 @@ def phraseguess_actual_oov(
 		all_oovs, # Counter[str]
 		train_target, # Counter[str]
 		leidos_unigrams, # Counter[str]
+		(adjectivizers, prefixers, suffixers, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], {str: str})
 		conf) = static_data
 	
 	if debug_print:
