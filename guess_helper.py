@@ -72,7 +72,10 @@ def load_grammar(grammarfilename, pertainymfilename) -> "([str], [(str, str)], [
 	with open(grammarfilename) as grammarfile:
 		for line in grammarfile.read().splitlines():
 			# Untranslatable suffixes of all kind
-			if "::synt" in line and "suffix" in line and "::eng" not in line:
+			if "::synt" in line \
+					and "suffix" in line \
+					and "::eng" not in line \
+					and "adjectivizer" not in line:
 				uig = re.search(r'::uig ([^:]*) ::', line).group(1)
 				untranslatables.append(uig)
 			# Translatable noun suffixes

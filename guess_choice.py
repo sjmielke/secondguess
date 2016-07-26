@@ -27,12 +27,20 @@ def score_full_phrase_matches(
 	def new_cw_for(foreign: str, is_legal = True):
 		return guess_matching.CandidateWord(foreign, foreign, 0, 0, len(foreign), is_legal)
 	
+	def adjectivize(eng: str):
+		if eng in noun_adjective_dict:
+			return noun_adjective_dict[eng]
+		elif len(eng.split()) > 1:
+			return " ".join(map(adjectivize, eng.split()))
+		else:
+			return eng
+	
 	#print("Phrase: ", phrase)
 	
 	candidatess = []
 	for s in phrase:
 		cw_list = all_matches[s]
-		if any(p[0] == s for p in prefixers + suffixers) or any(suf == s for suf in untranslatables):
+		if any(p[0] == s for p in prefixers + suffixers) or any(suf == s for suf in untranslatables + adjectivizers):
 			cw_list.append(new_cw_for(s, is_legal = False))
 		#print("  for {:10}".format(s), cw_list)
 		candidatess.append(cw_list)
@@ -47,7 +55,7 @@ def score_full_phrase_matches(
 	
 	# First we have to evaluate the candidates into translation candidates!
 	def translate_candidate(candidate: "[CandidateWord]") -> "[([CandidateWord], [str])]":
-		#print(" Candidate: ", candidate)
+		#print("Candidate: ", candidate)
 		
 		candwordss  = [[]]
 		transwordss = [[]]
@@ -65,14 +73,18 @@ def score_full_phrase_matches(
 			
 			# Untranslatable suffixes from the grammar
 			untr_opts = [u for u in untranslatables if u == cw.oov]
-			print(cw.oov, untr_opts)
-			#print("{:10} not in".format(cw.oov), sorted(untranslatables))
 			dnew_candwordss  += [oldcandwords + [new_cw_for(u)] for oldcandwords  in candwordss  for u in untr_opts]
 			dnew_transwordss += [oldtranswords                  for oldtranswords in transwordss for u in untr_opts]
 			
+			# Adjectivizers
+			adj_opts = [a for a in adjectivizers if a == cw.oov]
+			dnew_candwordss  += [oldcandwords + [new_cw_for(a)]          for oldcandwords  in candwordss  for a in adj_opts]
+			dnew_transwordss += [[adjectivize(w) for w in oldtranswords] for oldtranswords in transwordss for a in adj_opts]
+			
 			candwordss  = new_candwordss  + dnew_candwordss
 			transwordss = new_transwordss + dnew_transwordss
-		return [(candwords, transwords) for (candwords, transwords) in zip(candwordss, transwordss)]
+		#print(list(zip(candwordss, transwordss)))
+		return list(zip(candwordss, transwordss))
 	
 	translated_unsorted_candidates = list(itertools.chain(*list(map(translate_candidate, unsorted_candidates))))
 	
