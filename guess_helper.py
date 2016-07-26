@@ -50,7 +50,7 @@ def load_catmorfdict(oov_original_list, morffile):
 	cleanmorfstring = lambda s: list(map(lambda seg: seg.split('|'), s.split()))
 	return dict(zip(oov_original_list, map(cleanmorfstring, morfoutput)))
 
-def load_grammar(grammarfilename, pertainymfilename) -> "([str], [(str, str)], [(str, str)], {str: str})":
+def load_grammar(grammarfilename, pertainymfilename) -> "([str], [(str, str)], [(str, str)], [str], {str: str})":
 	noun_adjective_dict = {}
 	
 	with open(pertainymfilename) as pertainymfile:
@@ -67,10 +67,15 @@ def load_grammar(grammarfilename, pertainymfilename) -> "([str], [(str, str)], [
 
 	# grep '::synt noun suffix' grammar.uig-v02.txt | grep ::eng | sed 's/ ::synt noun suffix ::function /	/;s/	.*::eng /	/;s/::uig //;s/ ::.*$//'
 
-	adjectivizers, prefixers, suffixers = [], [], []
+	adjectivizers, prefixers, suffixers, untranslatables = [], [], [], []
 	
 	with open(grammarfilename) as grammarfile:
 		for line in grammarfile.read().splitlines():
+			# Untranslatable suffixes of all kind
+			if "::synt" in line and "suffix" in line and "::eng" not in line:
+				uig = re.search(r'::uig ([^:]*) ::', line).group(1)
+				untranslatables.append(uig)
+			# Translatable noun suffixes
 			if "::synt noun suffix" in line:
 				uig = re.search(r'::uig ([^:]*) ::', line).group(1)
 				if "adjectivizer" in line:
@@ -100,7 +105,7 @@ def load_grammar(grammarfilename, pertainymfilename) -> "([str], [(str, str)], [
 							else:
 								prefixers.append((uig, eng + ' '))
 
-	return (adjectivizers, prefixers, suffixers, noun_adjective_dict)
+	return (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict)
 
 
 def mapfst(l):

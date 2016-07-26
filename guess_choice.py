@@ -21,44 +21,54 @@ def score_full_phrase_matches(
 		all_oovs, # Counter[str]
 		train_target, # Counter[str]
 		leidos_unigrams, # Counter[str]
-		(adjectivizers, prefixers, suffixers, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], {str: str})
+		(adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], [str], {str: str})
 		conf) = static_data
 	
 	def new_cw_for(foreign: str, is_legal = True):
 		return guess_matching.CandidateWord(foreign, foreign, 0, 0, len(foreign), is_legal)
 	
+	#print("Phrase: ", phrase)
+	
 	candidatess = []
 	for s in phrase:
 		cw_list = all_matches[s]
-		if any(p[0] == s for p in prefixers + suffixers):
+		if any(p[0] == s for p in prefixers + suffixers) or any(suf == s for suf in untranslatables):
 			cw_list.append(new_cw_for(s, is_legal = False))
+		#print("  for {:10}".format(s), cw_list)
 		candidatess.append(cw_list)
-	candidatess = guess_helper.uniq_list(candidatess)
 	
 	lengths = list(map(len, candidatess))
 	statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
 	if debug_print:
 		print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
 	
-	unsorted_candidates = list(itertools.product(*candidatess))
+	unsorted_candidates = guess_helper.uniq_list(list(itertools.product(*candidatess)))
 	
 	
 	# First we have to evaluate the candidates into translation candidates!
 	def translate_candidate(candidate: "[CandidateWord]") -> "[([CandidateWord], [str])]":
+		#print(" Candidate: ", candidate)
+		
 		candwordss  = [[]]
 		transwordss = [[]]
 		for cw in candidate:
-			transword_options = [t for t in translations[cw.lexword]] if cw.islegal else [cw.oov]
+			transword_opts = [t for t in translations[cw.lexword]] if cw.islegal else [cw.oov]
+			new_candwordss  = [oldcandwords  + [cw]     for oldcandwords  in candwordss  for _      in transword_opts]
+			new_transwordss = [oldtranswords + [option] for oldtranswords in transwordss for option in transword_opts]
 			
-			new_candwordss  = [oldcandwords  + [cw]     for oldcandwords  in candwordss  for _      in transword_options]
-			new_transwordss = [oldtranswords + [option] for oldtranswords in transwordss for option in transword_options]
-			
+			# Prefixes/suffixes proper
 			prefix_opts = [p for p in prefixers if p[0] == cw.oov]
 			suffix_opts = [p for p in suffixers if p[0] == cw.oov]
-			
 			dnew_candwordss   = [oldcandwords   + [new_cw_for(p[0])] for oldcandwords  in candwordss  for p in prefix_opts + suffix_opts]
 			dnew_transwordss  = [[p[1].strip()] + oldtranswords      for oldtranswords in transwordss for p in prefix_opts]
 			dnew_transwordss += [oldtranswords  + [p[1].strip()]     for oldtranswords in transwordss for p in suffix_opts]
+			
+			# Untranslatable suffixes from the grammar
+			untr_opts = [u for u in untranslatables if u == cw.oov]
+			print(cw.oov, untr_opts)
+			#print("{:10} not in".format(cw.oov), sorted(untranslatables))
+			dnew_candwordss  += [oldcandwords + [new_cw_for(u)] for oldcandwords  in candwordss  for u in untr_opts]
+			dnew_transwordss += [oldtranswords                  for oldtranswords in transwordss for u in untr_opts]
 			
 			candwordss  = new_candwordss  + dnew_candwordss
 			transwordss = new_transwordss + dnew_transwordss

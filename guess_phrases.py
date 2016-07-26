@@ -45,7 +45,7 @@ def phraseguess_actual_oov(
 		all_oovs, # Counter[str]
 		train_target, # Counter[str]
 		leidos_unigrams, # Counter[str]
-		(adjectivizers, prefixers, suffixers, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], {str: str})
+		(adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict), # ([str], [(str, str)], [(str, str)], [str], {str: str})
 		conf) = static_data
 	
 	if debug_print:

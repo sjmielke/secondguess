@@ -28,9 +28,10 @@ def load_global_data(conf):
 	leidos_unigrams = Counter(dict(unigramlines))
 	
 	# Load grammar
-	(adjectivizers, prefixers, suffixers, noun_adjective_dict) = guess_helper.load_grammar(conf['global-files']['grammar'], conf['global-files']['pertainyms'])
+	(adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict) \
+		= guess_helper.load_grammar(conf['global-files']['grammar'], conf['global-files']['pertainyms'])
 	
-	return ((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict))
+	return ((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict))
 
 def prepare_guessing(oov_original_list, catmorfdict):
 	# Start filling our guess dictionary!
@@ -69,7 +70,7 @@ if __name__ == '__main__':
 		
 		# Load static data
 		conf = guess_helper.load_config(None)
-		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict)) = load_global_data(conf)
+		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict)) = load_global_data(conf)
 		
 		morfmodel = morfessor.MorfessorIO().read_binary_model_file(conf['server-files']['morfmodel'])
 		print("Loaded files")
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 				                guessable_oovs_counter,
 				                train_target,
 				                leidos_unigrams,
-				                (adjectivizers, prefixers, suffixers, noun_adjective_dict),
+				                (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict),
 				                conf)
 				oov_guesses[oov] = guess_phrases.phraseguess_actual_oov(oov, static_data = static_data)[:100]
 			
@@ -119,7 +120,7 @@ if __name__ == '__main__':
 	elif args.which == 'mode_batch':
 		# Load static data
 		conf = guess_helper.load_config(args.setname)
-		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, noun_adjective_dict)) = load_global_data(conf)
+		((matchers, translations), train_target, leidos_unigrams, (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict)) = load_global_data(conf)
 		
 		oov_original_list = guess_helper.load_file_lines(conf['set-files']['oovfile'])
 		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
@@ -146,7 +147,7 @@ if __name__ == '__main__':
 		                guessable_oovs_counter,
 		                train_target,
 		                leidos_unigrams,
-		                (adjectivizers, prefixers, suffixers, noun_adjective_dict),
+		                (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict),
 		                conf)
 		shared.setConst(static_data = static_data)
 		
