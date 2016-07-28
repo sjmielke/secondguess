@@ -1,4 +1,7 @@
 import sys
+import typing
+
+CandidateWord = typing.NamedTuple('CandidateWord', [('oov', str), ('lexword', str), ('i_lex', int), ('i_oov', int), ('matchlength', int), ('islegal', bool)])
 
 new_dict = {}
 

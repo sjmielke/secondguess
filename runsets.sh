@@ -73,7 +73,7 @@ if [ -n "${PBS_NODEFILE}" ]; then
 	hosts1=$(mktemp)
 	hostsn=$(mktemp)
 	uniq ${PBS_NODEFILE} > $hosts1
-	cat $hosts1 $hosts1 $hosts1 $hosts1 > $hostsn
+	cat $hosts1 $hosts1 $hosts1 > $hostsn
 	SCOOP_HOSTS="--host $(cat $hostsn) -n $(cat $hostsn | wc -l)"
 	rm $hosts1 $hostsn
 fi
