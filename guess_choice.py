@@ -113,12 +113,12 @@ def score_full_phrase_matches(
 		# TARGET SIDE FEATURES
 		
 		# reward new english words (justified OOVs) - more precise: words that contain new stuff!
-		training_count_penalty = min([0.000000005 * log(1 + train_target[tw]) for tw in transwords])
+		training_count_penalty = min([0.0] + [0.000000005 * log(1 + train_target[tw]) for tw in transwords])
 		
 		# average LEIDOS frequency (surrogate for both in-domain-ness and general language model!) - only works for single words
-		single_words = itertools.chain(*(tw.split() for tw in transwords))
+		single_words = list(itertools.chain(*(tw.split() for tw in transwords)))
 		leidos_frequencies = [leidos_unigrams[trans] for trans in single_words]
-		leidos_frequency = 0.000000001 * sum(leidos_frequencies) / len(leidos_frequencies)
+		leidos_frequency = 0.0 if single_words == [] else 0.000000001 * sum(leidos_frequencies) / len(leidos_frequencies)
 		# reward english in-domain words
 		# -> need domain-word-list
 		# reward more common english words
@@ -155,7 +155,7 @@ def score_full_phrase_matches(
 			score += scoringweights[feature] * feature_values[feature]
 		
 		# Small tie breaker to have deterministic results
-		tiebreaker_hashes = list(map(hash, transwords))
+		tiebreaker_hashes = list(map(hash, transwords)) + list(map(hash, cws))
 		score += 0.000000000000000000000000000001 * sum(tiebreaker_hashes) / len(tiebreaker_hashes)
 		
 		return {'translation': " ".join(transwords),

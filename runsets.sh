@@ -1,10 +1,30 @@
 #! /bin/env bash
 
-      SETS="syscomb dev domain test uroom devdomain domain2" # eval"
-SBMTSYSTEM="isi-sbmt-v5-uzb"
-   DATADIR="/home/nlg-05/sjm_445/uyghur/on_top_of/$SBMTSYSTEM"
-PYGUESSDIR="/home/nlg-05/sjm_445/pyguess"
-       LEX="guessing_input_lexicon.v13"
+# Caution: reffile for BLEU calculation is hardcoded.
+
+if [ -z $1 ]; then
+	echo 'No DATADIR ($1) specified!'
+	exit 1
+fi
+if [ -z $2 ]; then
+	echo 'No SETS list ($2) specified!'
+	exit 1
+fi
+if [ -z $3 ]; then
+	echo 'No LEXICON ($3) specified!'
+	exit 1
+fi
+if [ -z $4 ]; then
+	echo 'No reference directory for BLEU ($4) specified, skipping BLEU calculation.'
+fi
+
+DATADIR="$1"
+   SETS="$2"
+    LEX="$3"
+ REFDIR="$4"
+
+SBMTSYSTEM="$(basename $DATADIR)"
+PYGUESSDIR="$(dirname "$(readlink -f "$0")")"
 
 set -e
 cd $DATADIR
@@ -39,7 +59,7 @@ cat > pyguess.config <<- EOT
 		"trainingcountweight":   0.5,
 		"leidosfrequencyweight": 0.9,
 		"lengthratioweight":     0.4,
-		"resultwordcountweight": 5.0,
+		"resultwordcountweight": 2.0,
 		"englishcopyboost":      50.0,
 		"deletionscore":        -10.0,
 		"copyscore":            -5.0
@@ -129,7 +149,11 @@ for set in $SETS; do
 	detok data/${set}.sbmt.guessed.tok
 
 	# Prepare packages for upload
-	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh data/${set}.sbmt.guessed.detok staticdata/package/extracted/ staticdata/package/elisa.il3-eng.${set}.y1r1.*.xml.gz data/${SBMTSYSTEM}-guess.il3-eng.${set}.y1r1.v1.xml.gz
+	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh \
+		data/${set}.sbmt.guessed.detok \
+		staticdata/package/extracted/${set}.source.orig \
+		staticdata/package/elisa.il3-eng.${set}.y1r1.*.xml.gz \
+		data/${SBMTSYSTEM}-guess.il3-eng.${set}.y1r1.v1.xml.gz
 
 	# Compare against pure SBMT output!
 	python3 $PYGUESSDIR/tools/rejoin_oovs.py\
@@ -139,18 +163,20 @@ for set in $SETS; do
 
 	detok data/${set}.sbmt.unguessed.tok
 
-	# Calculate BLEU scores
-	reffile=/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/$set.target.orig
-	if [ -s $reffile ]; then
-		date >> data/${set}.bleu_results.txt
-		for lc in 0 1; do
-			echo "LC: $lc" >> data/${set}.bleu_results.txt
-			
-			for f in data/$set.sbmt.unguessed.detok data/$set.sbmt.guessed.detok; do
-				/home/nlg-02/data07/bin/bleu.pl -i $f -if xline -metric bleuNistVersion -lc $lc $reffile >> data/${set}.bleu_results.txt
+	if [ ! -z "$REFDIR" ]; then
+		# Calculate BLEU scores
+		reffile=$REFDIR/$set.target.orig
+		if [ -s $reffile ]; then
+			date >> data/${set}.bleu_results.txt
+			for lc in 0 1; do
+				echo "LC: $lc" >> data/${set}.bleu_results.txt
+				
+				for f in data/$set.sbmt.unguessed.detok data/$set.sbmt.guessed.detok; do
+					/home/nlg-02/data07/bin/bleu.pl -i $f -if xline -metric bleuNistVersion -lc $lc $reffile >> data/${set}.bleu_results.txt
+				done
 			done
-		done
-	else
-		echo "No BLEU calculatable, since $reffile doesn't exist." >> data/${set}.bleu_results.txt
+		else
+			echo "No BLEU calculatable, since $reffile doesn't exist." >> data/${set}.bleu_results.txt
+		fi
 	fi
 done
