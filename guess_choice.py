@@ -95,6 +95,7 @@ def score_full_phrase_matches(
 	
 	def score_phrase(cand: "([CandidateWord], [str])") -> float:
 		(cws, transwords) = cand
+		scoringweights = conf['scoring-weights']
 		
 		# SOURCE SIDE FEATURES
 		
@@ -130,7 +131,7 @@ def score_full_phrase_matches(
 		inp_length = sum([len(cw.oov) for cw in cws])
 		out_length = sum([len(tw)     for tw in transwords])
 		# Data says english ~ 0.75 * uyghur
-		lengthratio = 0.0000005 * abs(log(0.75 * (inp_length+0.00000001)/(out_length+0.00000001)))
+		lengthratio = 0.0000005 * abs(log(scoringweights['targetlengthratio'] * (inp_length+0.00000001)/(out_length+0.00000001)))
 		
 		target_word_count_penalty = 0.5 * (sum([len(tw.split()) for tw in transwords]) - 1)
 		
@@ -147,8 +148,6 @@ def score_full_phrase_matches(
 		                  'lengthratioweight':     -1 * lengthratio,
 		                  'resultwordcountweight': -1 * target_word_count_penalty,
 		                  'englishcopyboost':           (1 if is_englishcopy else 0)}
-		
-		scoringweights = conf['scoring-weights']
 		
 		score = 0.0
 		for feature in feature_values:
