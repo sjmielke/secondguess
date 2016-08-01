@@ -74,7 +74,7 @@ def lookup_oov(oov: str, matchers = None) -> "(str, [CandidateWord])":
 			cur_wordcount = 1
 			result += cur_wordlist
 			cur_wordlist = []
-		if cur_wordcount > 75 or cur_matchlength + 4 < best_matchlength:
+		if cur_wordcount > 35 or cur_matchlength + 4 < best_matchlength:
 			break
 		
 		cur_wordlist.append(cw)

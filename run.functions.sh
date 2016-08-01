@@ -255,7 +255,7 @@ split-set-prepend ()
 	
 	rm -f "$INDIR/${INFILE}.split."*
 	rm -f "$INDIR/"*"-${INFILE}"
-	split -a 3 -l 200 "$INDIR/$INFILE" "$INDIR/${INFILE}.split."
+	split -a 3 -l 100 "$INDIR/$INFILE" "$INDIR/${INFILE}.split."
 	
 	for f in "$INDIR/${INFILE}.split."*; do
 		PARTFILE="$(basename "$f")"

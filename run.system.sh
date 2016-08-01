@@ -18,7 +18,7 @@ if [ -z "$REFDIR" ]; then
 fi
 
 # Call for each system (including OOV matching)
- CALL_SYSTEM="qsub -q isi -l walltime=10:00:00 -l nodes=1:quadcore"
+ CALL_SYSTEM="qsub -q isi -l walltime=10:00:00 -l nodes=10:quadcore:ppn=8"
 # Call for each set-part (including packaging, has to survive the guesser jobs!)
     CALL_SET="qsub -q isi -l walltime=40:00:00 -l nodes=1:quadcore"
 # Call for the individual set parts

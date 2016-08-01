@@ -55,11 +55,16 @@ def score_full_phrase_matches(
 		candidatess.append(cw_list)
 	
 	lengths = list(map(len, candidatess))
-	statstring = " x ".join(map(str, lengths)) + " = {}".format(reduce(operator.mul, lengths, 1))
-	if debug_print:
-		print (" » {:<20} » {:<20}".format(" ".join(phrase), statstring), end='', flush=True)
+	total_num_candidates = reduce(operator.mul, lengths, 1)
 	
-	unsorted_candidates = guess_helper.uniq_list(list(itertools.product(*candidatess)))
+	if debug_print:
+		print (" » {:<20} » {:<20} = {}".format(" ".join(phrase), " x ".join(map(str, lengths)), total_num_candidates), end='', flush=True)
+	
+	if total_num_candidates < 1000:
+		unsorted_candidates = guess_helper.uniq_list(list(itertools.product(*candidatess)))
+	else:
+		unsorted_candidates = []
+		print("Decidedly too many ({}) candidates for »{}«, split into {}.".format(total_num_candidates, fulloov, phrase), file = sys.stderr)
 	
 	
 	# First we have to evaluate the candidates into translation candidates!
@@ -102,7 +107,7 @@ def score_full_phrase_matches(
 		# http://stackoverflow.com/a/18403812
 		return len(s) == len(s.encode())
 	
-	def score_phrase(cand: "([CandidateWord], [str])") -> float:
+	def score_phrase(cand: "([CandidateWord], [str])") -> {}:
 		(cws, transwords) = cand
 		scoringweights = conf['scoring-weights']
 		
@@ -176,16 +181,19 @@ def score_full_phrase_matches(
 	scored = sorted(scored_unsorted_candidates, key = lambda c: c['score'], reverse = True)
 	
 	if debug_print:
-		for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in scored[0]['candidate']:
-			if legal:
-				print("     {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
-					guess_helper.bold(oov    , oovindex, matchlength),
-					guess_helper.bold(lexword, lexindex, matchlength),
-					trans))
-			else:
-				print("     {:<36} ✗ {:<20} -> {:<20}".format(
-					guess_helper.bold(oov    , oovindex, matchlength),
-					"---",
-					oov))
+		if scored != []:
+			for ((oov, lexword, lexindex, oovindex, matchlength, legal), trans) in zip(*scored[0]['candidate']):
+				if legal:
+					print("     {:<36} ✔ {:<36} -> {:<20}".format( # 20 + 4 * 4 = 36
+						guess_helper.bold(oov    , oovindex, matchlength),
+						guess_helper.bold(lexword, lexindex, matchlength),
+						trans))
+				else:
+					print("     {:<36} ✗ {:<20} -> {:<20}".format(
+						guess_helper.bold(oov    , oovindex, matchlength),
+						"---",
+						oov))
+		else:
+			print("     ... no matches")
 	
 	return scored

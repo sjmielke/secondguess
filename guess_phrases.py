@@ -33,7 +33,7 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 def phraseguess_actual_oov(
 		oov: str,
 		static_data = None, # populated only when called as server
-		debug_print: bool = False
+		debug_print: bool = True
 	) -> [(str, float, bool)]:
 	
 	if static_data == None:
