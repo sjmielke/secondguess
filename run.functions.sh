@@ -65,7 +65,7 @@ main-manysets ()
 			source "$PYGUESSDIR/run.functions.sh"
 			cd "$DATADIR"
 			
-			guess-set "$set" "$CALL_SETPART" 0
+			guess-set "$set" "$CALL_SETPART" "noscoop"
 			
 			rejoin-and-detok "$set"
 			
@@ -107,7 +107,7 @@ main-singlefile ()
 		python3 $(get-scoop-params 4) "$PYGUESSDIR/guess_matching.py"
 
 	# Guessing
-	guess-set "$set" "$CALL_SETPART" 0
+	guess-set "$set" "$CALL_SETPART" "noscoop"
 
 	# Output moving
 	cp "data/${set}.sbmt.oov.guesses.1best.hyp"  "$INFILE.guessed.1best.hyp"
@@ -204,7 +204,7 @@ get-scoop-params ()
 {
 	SCOOP_CORES_PER_NODE="$(check-argument "get-scoop-params" "1" "$1" "SCOOP_CORES_PER_NODE")"
 	
-	if [ -z "$SCOOP_CORES_PER_NODE" ]; then
+	if [ "$SCOOP_CORES_PER_NODE" = "noscoop" ]; then
 		return
 	fi
 	

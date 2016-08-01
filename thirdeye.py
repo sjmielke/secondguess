@@ -1,4 +1,4 @@
-from scoop import futures, shared
+#from scoop import futures, shared
 import multiprocessing
 from contextlib import closing
 from collections import Counter
@@ -146,10 +146,11 @@ if __name__ == '__main__':
 		                leidos_unigrams,
 		                (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict),
 		                conf)
-		shared.setConst(static_data = static_data)
 		
 		# Here is where the SCOOP magic happens
-		guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
+		#shared.setConst(static_data = static_data)
+		#guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
+		guess_results = list(map(lambda o: guess_phrases.phraseguess_actual_oov(o, static_data), sorted_guessable_oovs))
 		
 		all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: r[1][0]['score'], reverse = True)
 		
