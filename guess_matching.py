@@ -95,8 +95,9 @@ if __name__ == '__main__':
 	
 	# Filter those out that are already present in the matchfile
 	try:
+		# Load previously calculated matches
 		with open(conf['global-files']['allmatches']) as f:
-			prev_matches = eval(guess_helper.uninorm(f.read()))
+			prev_matches = dict(map(lambda t: eval(guess_helper.uninorm(t)), f.read().splitlines()))
 	except:
 		prev_matches = {}
 	
@@ -108,4 +109,5 @@ if __name__ == '__main__':
 	prev_matches.update(result)
 	
 	with open(conf['global-files']['allmatches'], 'w') as f:
-		print(prev_matches, file = f)
+		for i in sorted(prev_matches.items(), key = lambda t: t[0]):
+			print(i, file = f)

@@ -39,7 +39,16 @@ def score_full_phrase_matches(
 	
 	candidatess = []
 	for s in phrase:
-		cw_list = all_matches[s]
+		
+		if s not in all_matches:
+			print("Phrasepart not in all_matches:", s, file = sys.stderr)
+			print("phrase =", phrase, file = sys.stderr)
+			print("fulloov =", fulloov, file = sys.stderr)
+			print("len(all_matches) =", len(all_matches), file = sys.stderr)
+			cw_list = []
+		else:
+			cw_list = all_matches[s]
+		
 		if any(p[0] == s for p in prefixers + suffixers) or any(suf == s for suf in untranslatables + adjectivizers):
 			cw_list.append(new_cw_for(s, is_legal = False))
 		#print("  for {:10}".format(s), cw_list)

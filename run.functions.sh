@@ -166,7 +166,7 @@ write-pyguess-config ()
 		"set-placeholder": "<<SET>>",
 		"global-files": {
 			"lexicon":         "$DATADIR/staticdata/${LEX}",
-			"allmatches":      "$DATADIR/data/${LEX}.fullmorfmatches",
+			"allmatches":      "$DATADIR/data/${LEX}.fullmorfmatches.serial",
 			"train-target":    "$DATADIR/staticdata/train.target.agile",
 			"leidos-unigrams": "$DATADIR/staticdata/leidos_unigrams",
 			"grammar":         "$DATADIR/staticdata/grammar.uig-v04.txt",

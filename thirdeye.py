@@ -127,7 +127,7 @@ if __name__ == '__main__':
 		
 		# Load previously calculated matches
 		with open(conf['global-files']['allmatches']) as f:
-			all_matches = eval(guess_helper.uninorm(f.read()))
+			all_matches = dict(map(lambda t: eval(guess_helper.uninorm(t)), f.read().splitlines()))
 		
 		# Prepare guessing data
 		(oov_guesses, guessable_oovs_counter) = prepare_guessing(oov_original_list, catmorfdict)
