@@ -86,7 +86,8 @@ main-singlefile ()
 {
 	       INFILE="$(check-argument "main-singlefile" "1" "$1" "INFILE")"
 	STATICDATADIR="$(check-argument "main-singlefile" "2" "$2" "STATICDATADIR")"
-	 CALL_SETPART="$(check-argument "main-singlefile" "3" "$3" "CALL_SETPART")"
+	          LEX="$(check-argument "main-singlefile" "3" "$3" "LEXICON")"
+	 CALL_SETPART="$(check-argument "main-singlefile" "4" "$4" "CALL_SETPART")"
 	
 	if [ ! -z $4 ]; then
 		TMPDIR="$4"
