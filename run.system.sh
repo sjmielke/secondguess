@@ -8,13 +8,14 @@ PYGUESSDIR="$(dirname "$(readlink -f "$0")")"
 # This is where the heavy lifting ~happens~ is defined
 source $PYGUESSDIR/run.functions.sh
 
-syspath="$(check-argument "run.system.sh" "1" "$1" "SBMT SYSTEM DIRECTORY")"
-   SETS="$(check-argument "run.system.sh" "2" "$2" "SETS list")"
-LEXICON="$(check-argument "run.system.sh" "3" "$3" "LEXICON")"
- REFDIR="$4"
+      syspath="$(check-argument "run.system.sh" "1" "$1" "SBMT SYSTEM DIRECTORY")"
+         SETS="$(check-argument "run.system.sh" "2" "$2" "SETS list")"
+STATICDATADIR="$(check-argument "run.system.sh" "3" "$(readlink -f "$3")" "STATICDATA dir")"
+      LEXICON="$(check-argument "run.system.sh" "4" "$4" "LEXICON")"
+       REFDIR="$5"
 
 if [ -z "$REFDIR" ]; then
-	echo 'No REFDIR ($4) specified, will skip BLEU calculation for all sets.' >&2
+	echo 'No REFDIR ($5) specified, will skip BLEU calculation for all sets.' >&2
 fi
 
 # Call for each system (including OOV matching)
@@ -34,7 +35,7 @@ echo "# System: $sysname" >&2
 if [ ! -d "$sysname" ]; then
 	echo "1) Making new directories" >&2
 	mkdir -p "$sysname"
-	move-into-fresh-datadir ${sysname} ../__staticdata
+	move-into-fresh-datadir ${sysname} ${STATICDATADIR}
 else
 	echo "1) No need to make new directories." >&2
 	cd "$sysname"

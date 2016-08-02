@@ -84,13 +84,13 @@ main-manysets ()
 
 main-singlefile ()
 {
-	       INFILE="$(check-argument "main-singlefile" "1" "$1" "INFILE")"
+	 SINGLEINFILE="$(check-argument "main-singlefile" "1" "$1" "INFILE")"
 	STATICDATADIR="$(check-argument "main-singlefile" "2" "$2" "STATICDATADIR")"
 	          LEX="$(check-argument "main-singlefile" "3" "$3" "LEXICON")"
 	 CALL_SETPART="$(check-argument "main-singlefile" "4" "$4" "CALL_SETPART")"
 	
-	if [ ! -z $4 ]; then
-		TMPDIR="$4"
+	if [ ! -z $5 ]; then
+		TMPDIR="$5"
 	fi
 	
 	PREVDIR="$(pwd)"
@@ -99,23 +99,22 @@ main-singlefile ()
 
 	write-pyguess-config "$DATADIR" "$LEX"
 
-	SETFILE="$(mktemp -p data/ --suffix=.sbmt.oov)"
-	set="${SETFILE%.sbmt.oov}"
+	cp "${SINGLEINFILE}" data/tmpset.sbmt.oov
 
 	# Matching
-	oovlist2phraseparts ${set} | \
+	oovlist2phraseparts tmpset | \
 		LC_COLLATE='UTF-8' sort -u | \
 		python3 $(get-scoop-params 4) "$PYGUESSDIR/guess_matching.py"
 
 	# Guessing
-	guess-set "$set" "$CALL_SETPART" "noscoop"
+	guess-set tmpset "$CALL_SETPART" "noscoop"
 
 	# Output moving
-	cp "data/${set}.sbmt.oov.guesses.1best.hyp"  "$INFILE.guessed.1best.hyp"
-	cp "data/${set}.sbmt.oov.guesses.nbest.json" "$INFILE.guessed.nbest.json"
+	cd "$PREVDIR"
+	cp "$DATADIR/data/tmpset.sbmt.oov.guesses.1best.hyp"  "$SINGLEINFILE.guessed.1best.hyp"
+	#cp "$DATADIR/data/tmpset.sbmt.oov.guesses.nbest.json" "$SINGLEINFILE.guessed.nbest.json"
 
 	# Cleanup
-	cd "$PREVDIR"
 	rm -r "$DATADIR"
 }
 
@@ -218,6 +217,8 @@ get-scoop-params ()
 		done
 		echo "-m scoop -vv --host $(cat $hostsn) -n $(cat $hostsn | wc -l)"
 		rm $hosts1 $hostsn
+	else
+		echo "-m scoop -vv"
 	fi
 }
 

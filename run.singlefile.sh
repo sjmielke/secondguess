@@ -3,7 +3,7 @@
 PYGUESSDIR="$(dirname "$(readlink -f "$0")")"
 
 # This is where the heavy lifting ~happens~ is defined
-source run.functions.sh
+source $PYGUESSDIR/run.functions.sh
 
        INFILE="$1"
 STATICDATADIR="$2"

@@ -32,12 +32,13 @@ Your "static data" directory must contain the following files with these exact n
 
 ### `run.system.sh`
 
-`bash run.system.sh SBMTSYSTEMPATH SETS LEXICONNAME REFERENCES`, e.g.:
+`bash run.system.sh SBMTSYSTEMPATH SETS STATICDATAPATH LEXICONNAME REFERENCES`, e.g.:
 
 ```
 /home/nlg-05/sjm_445/pyguess/run.system.sh \
 	/home/nlg-02/pust/elisa-trial/isi-sbmt-v5-uzb \
 	"dev test syscomb domain domain2 eval" \
+	staticdata \
 	guessing_input_lexicon.v14 \
 	/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/
 done
@@ -46,9 +47,7 @@ Run in the directory where you want to store all resulting data. The script will
 
 ### `run.singlefile.sh`
 
-**Caution**: I never ran it myself, so it just *should* work.
-
-`bash run.singlefile.sh INFILE STATICDATAPATH`, e.g.:
+`bash run.singlefile.sh INFILE STATICDATAPATH LEXICONNAME`, e.g.:
 
 ```
 /home/nlg-05/sjm_445/pyguess/run.system.sh \

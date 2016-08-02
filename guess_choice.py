@@ -47,6 +47,7 @@ def score_full_phrase_matches(
 			print("len(all_matches) =", len(all_matches), file = sys.stderr)
 			cw_list = []
 		else:
+			print("len(all_matches) =", len(all_matches), file = sys.stderr)
 			cw_list = all_matches[s]
 		
 		if any(p[0] == s for p in prefixers + suffixers) or any(suf == s for suf in untranslatables + adjectivizers):
@@ -60,7 +61,7 @@ def score_full_phrase_matches(
 	if debug_print:
 		print (" » {:<20} » {:<20} = {}".format(" ".join(phrase), " x ".join(map(str, lengths)), total_num_candidates), end='', flush=True)
 	
-	if total_num_candidates < 1000:
+	if total_num_candidates < 30000:
 		unsorted_candidates = guess_helper.uniq_list(list(itertools.product(*candidatess)))
 	else:
 		unsorted_candidates = []
