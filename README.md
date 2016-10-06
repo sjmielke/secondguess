@@ -1,5 +1,15 @@
 # secondguess
 
+Machine translation systems make many assumptions, missing a couple words that they could have translated - if only they were a little bit more lenient.
+
+This is a soft dictionary lookup solution that can post-process machine translation output to translate some of the words that were not translated. This works by splitting OOVs (out-of-vocabulry words, unknown words) into multiple parts and then performing a fuzzy lookup in the dictionary for all these parts, yielding english compounds, scoring them according to some handcrafted features and outputs the best option, as shown in these pictures from explanatory slides:
+
+![architecture views](https://raw.githubusercontent.com/sjmielke/secondguess/master/architecture.png)
+
+Fun bonus: a glosser using this "guessing" architecture.
+
+![glosser screenshot](https://raw.githubusercontent.com/sjmielke/secondguess/master/glosser.png)
+
 ## Installation
 
 ### Dependencies
@@ -21,6 +31,7 @@ Your "static data" directory must contain the following files with these exact n
 | Ulf's grammar (uig-specific, sorry) | `grammar.uig-v04.txt` |
 | Ulf's pertainym list | `english.pertainyms.txt` |
 | binary Morfessor model | `binary-baseline-model` |
+| ELISA packages (used for ELISA package output) | `package/elisa.*-eng.${set}.y1r1.*.xml.gz` |
 
 ### Things that depend on the ISI HPC cluster:
 
