@@ -17,15 +17,16 @@ fi
 
 main-manysets ()
 {
-	     DATADIR="$(check-argument "main-manysets" "1" "$1" "DATADIR")"
-	        SETS="$(check-argument "main-manysets" "2" "$2" "SETS list")"
-	         LEX="$(check-argument "main-manysets" "3" "$3" "LEXICON")"
-	    CALL_SET="$(check-argument "main-manysets" "4" "$4" "CALL for SET")"
-	CALL_SETPART="$(check-argument "main-manysets" "5" "$5" "CALL for SETPARTs")"
-	      REFDIR="$6"
+	       DATADIR="$(check-argument "main-manysets" "1" "$1" "DATADIR")"
+	          SETS="$(check-argument "main-manysets" "2" "$2" "SETS list")"
+	           LEX="$(check-argument "main-manysets" "3" "$3" "LEXICON")"
+	CALL_MATCHPART="$(check-argument "main-manysets" "4" "$4" "CALL for matching parts")"
+	      CALL_SET="$(check-argument "main-manysets" "5" "$5" "CALL for scoring SET")"
+	  CALL_SETPART="$(check-argument "main-manysets" "6" "$6" "CALL for scoring SETPARTs")"
+	        REFDIR="$7"
 	
 	if [ -z "$REFDIR" ]; then
-		echo 'No reference directory for BLEU ($6) specified, skipping BLEU calculation.' >&2
+		echo 'No reference directory for BLEU ($7) specified, skipping BLEU calculation.' >&2
 	fi
 
 	SBMTSYSTEM="$(basename $DATADIR)"
@@ -49,8 +50,7 @@ main-manysets ()
 	
 	# Match all phraseparts against dictionary
 	LC_COLLATE='UTF-8' sort -u "data/${LEX}.all.matchable.phraseparts" | \
-		python3 $(get-scoop-params 4) "$PYGUESSDIR/guess_matching.py"
-	# writes into "allmatches" file
+		match-phraseparts "$CALL_MATCHPART"
 
 	# Clean up the mess
 	rm -f "data/${LEX}.all.matchable.phraseparts"
@@ -65,7 +65,7 @@ main-manysets ()
 			source "$PYGUESSDIR/run.functions.sh"
 			cd "$DATADIR"
 			
-			guess-set "$set" "$CALL_SETPART" "noscoop"
+			guess-set "$set" "$CALL_SETPART" 4
 			
 			rejoin-and-detok "$set"
 			
@@ -84,13 +84,14 @@ main-manysets ()
 
 main-singlefile ()
 {
-	 SINGLEINFILE="$(check-argument "main-singlefile" "1" "$1" "INFILE")"
-	STATICDATADIR="$(check-argument "main-singlefile" "2" "$2" "STATICDATADIR")"
-	          LEX="$(check-argument "main-singlefile" "3" "$3" "LEXICON")"
-	 CALL_SETPART="$(check-argument "main-singlefile" "4" "$4" "CALL_SETPART")"
+	  SINGLEINFILE="$(check-argument "main-singlefile" "1" "$1" "INFILE")"
+	 STATICDATADIR="$(check-argument "main-singlefile" "2" "$2" "STATICDATADIR")"
+	           LEX="$(check-argument "main-singlefile" "3" "$3" "LEXICON")"
+	CALL_MATCHPART="$(check-argument "main-singlefile" "4" "$4" "CALL_MATCHPART")"
+	  CALL_SETPART="$(check-argument "main-singlefile" "5" "$5" "CALL_SETPART")"
 	
-	if [ ! -z $5 ]; then
-		TMPDIR="$5"
+	if [ ! -z $6 ]; then
+		TMPDIR="$6"
 	fi
 	
 	PREVDIR="$(pwd)"
@@ -104,10 +105,10 @@ main-singlefile ()
 	# Matching
 	oovlist2phraseparts tmpset | \
 		LC_COLLATE='UTF-8' sort -u | \
-		python3 $(get-scoop-params 4) "$PYGUESSDIR/guess_matching.py"
+		match-phraseparts "$CALL_MATCHPART"
 
 	# Guessing
-	guess-set tmpset "$CALL_SETPART" "noscoop"
+	guess-set tmpset "$CALL_SETPART" 4
 
 	# Output moving
 	cd "$PREVDIR"
@@ -200,28 +201,6 @@ write-pyguess-config ()
 	EOT
 }
 
-get-scoop-params ()
-{
-	SCOOP_CORES_PER_NODE="$(check-argument "get-scoop-params" "1" "$1" "SCOOP_CORES_PER_NODE")"
-	
-	if [ "$SCOOP_CORES_PER_NODE" = "noscoop" ]; then
-		return
-	fi
-	
-	if [ -n "${PBS_NODEFILE}" ]; then
-		hosts1=$(mktemp)
-		hostsn=$(mktemp)
-		uniq ${PBS_NODEFILE} > $hosts1
-		for core in $(seq 1 ${SCOOP_CORES_PER_NODE}); do
-			cat $hosts1 >> $hostsn
-		done
-		echo "-m scoop -vv --host $(cat $hostsn) -n $(cat $hostsn | wc -l)"
-		rm $hosts1 $hostsn
-	else
-		echo "-m scoop -vv"
-	fi
-}
-
 wait-for-file ()
 {
 	while [ ! -s "$1" ]; do
@@ -250,6 +229,7 @@ oovlist2phraseparts ()
 	python3 $PYGUESSDIR/guess_phrases.py ${set}
 }
 
+# Splits the given $FILE into 100-line parts and stores them as aaa-$FILE
 split-set-prepend ()
 {
 	INFILE="$(basename "$1")"
@@ -263,6 +243,44 @@ split-set-prepend ()
 		PARTFILE="$(basename "$f")"
 		mv "$f" "$INDIR/${PARTFILE#${INFILE}.split.}-${INFILE}"
 	done
+}
+
+# Calls jobs, but waits for all to finish
+match-phraseparts ()
+{
+	CALL_MATCHPART="$(check-argument "match-phraseparts" "1" "$1" "Matching CALL for SETPARTs")"
+	
+	split -a 3 -l 1000 - "data/${LEX}.fullmorfmatches.serial."
+	
+	# Run jobs
+	for f in "data/${LEX}.fullmorfmatches.serial."*; do
+		cat > "$f.matchme.sh" <<- EOT
+			PYGUESSDIR="$PYGUESSDIR"
+			source "$PYGUESSDIR/run.functions.sh"
+			cd "$(pwd)"
+			
+			python3 "$PYGUESSDIR/guess_matching.py" \
+				< "$f" \
+				> "$f.results"
+		EOT
+		$CALL_MATCHPART "$f.matchme.sh"
+	done
+	
+	# Wait for them to finish
+	for f in "data/${LEX}.fullmorfmatches.serial."???; do
+		echo -n "Now waiting for "
+		echo "${f}.results"
+		wait-for-file "${f}.results"
+	done
+	
+	echo "All are done! Time to join!"
+	
+	# Join
+	cat "data/${LEX}.fullmorfmatches.serial."???".results" \
+		> "data/${LEX}.fullmorfmatches.serial" # as defined in pyguess.config!
+	
+	# Clean up
+	rm "data/${LEX}.fullmorfmatches.serial."*
 }
 
 guess-set ()
@@ -284,12 +302,13 @@ guess-set ()
 		SETNAME="$f"
 		SETNAME="${SETNAME%.sbmt.oov.nopipes}"
 		SETNAME="${SETNAME#data/}"
+		# Now SETNAME="aaa-${set}"
 		cat > "${SETNAME}.${SBMTSYSTEM#isi-sbmt-}.sh" <<- EOT
 			PYGUESSDIR="$PYGUESSDIR"
 			source "$PYGUESSDIR/run.functions.sh"
 			cd "$(pwd)"
 			
-			python3 \$(get-scoop-params $CORES_MATCH) "$PYGUESSDIR/thirdeye.py" mode_batch "${SETNAME}"
+			python3 "$PYGUESSDIR/thirdeye.py" mode_batch "${SETNAME}"
 		EOT
 		$CALL_SETPART "${SETNAME}.${SBMTSYSTEM#isi-sbmt-}.sh" && rm "${SETNAME}.${SBMTSYSTEM#isi-sbmt-}.sh"
 	done

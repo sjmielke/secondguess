@@ -15,4 +15,5 @@ main-singlefile "$INFILE" \
   "${STATICDATADIR}" \
   "${LEX}" \
   bash \
+  bash \
   "$MYTMPDIR"

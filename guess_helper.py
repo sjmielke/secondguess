@@ -42,7 +42,7 @@ def load_dictionary(path: str) -> ("Dict[str: SequenceMatcher]", "Dict[str: Set[
 		(w, _, t) = line.split('\t')
 		matchers[w] = SequenceMatcher(a=None, b=w, autojunk=False)
 		translations[w].add(t)
-	#print("{} distinct dictionary words to compare against loaded.".format(len(matchers.keys())))
+	#print("{} distinct dictionary words to compare against loaded.".format(len(matchers.keys())), file = sys.stderr)
 	return (matchers, translations)
 
 def load_catmorfdict(oov_original_list, morffile):

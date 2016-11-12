@@ -1,4 +1,3 @@
-from scoop import futures, shared
 import itertools
 import operator # mul
 import sys # stderr
@@ -32,12 +31,9 @@ def gen_phrases(segments: "[(str, str)]") -> "[[str]]":
 
 def phraseguess_actual_oov(
 		oov: str,
-		static_data = None, # populated only when called as server
+		static_data,
 		debug_print: bool = True
 	) -> [(str, float, bool)]:
-	
-	if static_data == None:
-		static_data = shared.getConst('static_data')
 	
 	(all_matches, # {str: [CandidateWord]}
 		translations, # {str: [str]}

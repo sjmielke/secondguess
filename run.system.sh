@@ -18,12 +18,14 @@ if [ -z "$REFDIR" ]; then
 	echo 'No REFDIR ($5) specified, will skip BLEU calculation for all sets.' >&2
 fi
 
-# Call for each system (including OOV matching)
- CALL_SYSTEM="qsub -q isi -l walltime=10:00:00 -l nodes=10:quadcore:ppn=8"
-# Call for each set-part (including packaging, has to survive the guesser jobs!)
-    CALL_SET="qsub -q isi -l walltime=40:00:00 -l nodes=1:quadcore"
-# Call for the individual set parts
-CALL_SETPART="qsub -q isi -l walltime=15:00:00 -l nodes=1:quadcore"
+# Full initial call for each system (has to survive everyting); used here at the bottom!
+   CALL_SYSTEM="qsub -q isi -l walltime=30:00:00 -l nodes=1:quadcore:ppn=4"
+# Call for matching the 100-line parts of all sets combined
+CALL_MATCHPART="qsub -q isi -l walltime=15:00:00 -l nodes=1:quadcore:ppn=4"
+# Call for scoring a set (including packaging, has to survive the following individual jobs)
+      CALL_SET="qsub -q isi -l walltime=20:00:00 -l nodes=1:quadcore:ppn=4"
+# Call for the 100-line parts of each set (scoring)
+  CALL_SETPART="qsub -q isi -l walltime=15:00:00 -l nodes=1:quadcore:ppn=4"
 
 # ---------------------------------------------------------------
 # This is where the work starts!
@@ -67,7 +69,7 @@ echo "3) Starting guessing job for these sets:$foundsets" >&2
 cat > "guess.${sysname#isi-sbmt-}.sh" <<- EOT
 	PYGUESSDIR="$PYGUESSDIR"
 	source "$PYGUESSDIR/run.functions.sh"
-	main-manysets '$(pwd)' '$foundsets' '$LEXICON' '$CALL_SET' '$CALL_SETPART' '$REFDIR'
+	main-manysets '$(pwd)' '$foundsets' '$LEXICON' '$CALL_MATCHPART' '$CALL_SET' '$CALL_SETPART' '$REFDIR'
 EOT
 
 $CALL_SYSTEM "guess.${sysname#isi-sbmt-}.sh" && rm "guess.${sysname#isi-sbmt-}.sh"

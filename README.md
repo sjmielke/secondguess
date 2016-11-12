@@ -2,7 +2,7 @@
 
 Machine translation systems make many assumptions, missing a couple words that they could have translated - if only they were a little bit more lenient.
 
-This is a soft dictionary lookup solution that can post-process machine translation output to translate some of the words that were not translated. This works by splitting OOVs (out-of-vocabulry words, unknown words) into multiple parts and then performing a fuzzy lookup in the dictionary for all these parts, yielding english compounds, scoring them according to some handcrafted features and outputs the best option, as shown in these pictures from explanatory slides:
+This is a soft dictionary lookup solution that can post-process machine translation output to translate some of the words that were not translated. This works by splitting OOVs (out-of-vocabulary words, unknown words) into multiple parts and then performing a fuzzy lookup in the dictionary for all these parts, yielding english compounds, scoring them according to some handcrafted features and outputs the best option, as shown in these pictures from explanatory slides:
 
 ![architecture views](https://raw.githubusercontent.com/sjmielke/secondguess/master/architecture.png)
 
@@ -16,7 +16,6 @@ Fun bonus: a glosser using this "guessing" architecture.
 
 - Python 3, must be executable/in path as `python3`
 - [morfessor](https://pypi.python.org/pypi/Morfessor) 2.0, must be executable/in path as `morfessor`
-- [SCOOP](https://github.com/soravux/scoop), e.g. `pip3 install --user scoop`
 - the [AGILE tokenizer](https://github.com/isi-nlp/agile_tokenizer/) has to be cloned into `tools/agile_tokenizer`
 
 ### Data
@@ -49,10 +48,9 @@ Your "static data" directory must contain the following files with these exact n
 /home/nlg-05/sjm_445/pyguess/run.system.sh \
 	/home/nlg-02/pust/elisa-trial/isi-sbmt-v5-uzb \
 	"dev test syscomb domain domain2 eval" \
-	staticdata \
+	__staticdata \
 	guessing_input_lexicon.v14 \
 	/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/
-done
 ```
 Run in the directory where you want to store all resulting data. The script will create a folder with the system name (`isi-sbmt-v5-uzb` in this case) and store all stuff there. All results including finished ELISA packages will be in the `data` subfolder.
 
@@ -64,8 +62,7 @@ Run in the directory where you want to store all resulting data. The script will
 /home/nlg-05/sjm_445/pyguess/run.system.sh \
 	some.oovs.txt \
 	/home/nlg-05/sjm_445/uyghur/on_top_of/__staticdata \
-	guessing_input_lexicon.v14 \
-done
+	guessing_input_lexicon.v14
 ```
 Run anywhere. Will create `$INFILE.guessed.1best.hyp` and `$INFILE.guessed.nbest.json` (in the same folder as `$INFILE`).
 
@@ -102,5 +99,5 @@ For each set individually:
 ## Notes and TODOs
 
 - Many things are probably super inefficient.
-- SCOOP and HPC don't exactly seem to like each other.
+- My parallelism (create lots of scripts and jobs) works, but...
 - Storing all matches in one big `allmatches` file per system is a giant race condition disaster waiting to happen. The `run.singlefile.sh` script circumvents that problem by not sharing anything and doing all calculations in a temporary directory.

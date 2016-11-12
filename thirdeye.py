@@ -1,5 +1,3 @@
-#from scoop import futures, shared
-import multiprocessing
 from contextlib import closing
 from collections import Counter
 import itertools
@@ -126,8 +124,10 @@ if __name__ == '__main__':
 		catmorfdict = guess_helper.load_catmorfdict(oov_original_list, conf['set-files']['catmorffile'])
 		
 		# Load previously calculated matches
+		print("Now loading all previous matches from", conf['global-files']['allmatches'], "...", end='', file = sys.stderr)
 		with open(conf['global-files']['allmatches']) as f:
 			all_matches = dict(map(lambda t: eval(guess_helper.uninorm(t)), f.read().splitlines()))
+		print("done!", file = sys.stderr)
 		
 		# Prepare guessing data
 		(oov_guesses, guessable_oovs_counter) = prepare_guessing(oov_original_list, catmorfdict)
@@ -147,10 +147,8 @@ if __name__ == '__main__':
 		                (adjectivizers, prefixers, suffixers, untranslatables, noun_adjective_dict),
 		                conf)
 		
-		# Here is where the SCOOP magic happens
-		#shared.setConst(static_data = static_data)
-		#guess_results = list(futures.map(guess_phrases.phraseguess_actual_oov, sorted_guessable_oovs))
-		guess_results = list(map(lambda o: guess_phrases.phraseguess_actual_oov(o, static_data), sorted_guessable_oovs))
+		# Do the guessing!
+		guess_results = [guess_phrases.phraseguess_actual_oov(o, static_data) for o in sorted_guessable_oovs]
 		
 		all_results = sorted(list(zip(sorted_guessable_oovs, guess_results)), key = lambda r: r[1][0]['score'], reverse = True)
 		
