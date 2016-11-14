@@ -23,10 +23,18 @@ main-manysets ()
 	CALL_MATCHPART="$(check-argument "main-manysets" "4" "$4" "CALL for matching parts")"
 	      CALL_SET="$(check-argument "main-manysets" "5" "$5" "CALL for scoring SET")"
 	  CALL_SETPART="$(check-argument "main-manysets" "6" "$6" "CALL for scoring SETPARTs")"
-	        REFDIR="$7"
+	        REFDIR="$(check-argument "main-manysets" "7" "$7" "REFDIR containing elisa-...set...xml.gz")"
 	
-	if [ -z "$REFDIR" ]; then
-		echo 'No reference directory for BLEU ($7) specified, skipping BLEU calculation.' >&2
+	# if necessary, perform extraction
+	if [ -d "$REFDIR/extracted" ]; then
+		pushd "$REFDIR" > /dev/null
+		mkdir extracted
+		popd > /dev/null
+		pushd "$PYGUESSDIR/tools/xtract"
+		for x in $SETS; do
+			zcat "$REFDIR"/elisa.*-eng.${x}.y?r?.*.xml.gz | grep -v '<HEAD start_char' | python2 xtractv4 "$REFDIR/extracted/$x"
+		done
+		popd > /dev/null
 	fi
 
 	SBMTSYSTEM="$(basename $DATADIR)"
@@ -34,7 +42,7 @@ main-manysets ()
 	PREVDIR="$(pwd)"
 	cd $DATADIR
 
-	write-pyguess-config "$DATADIR" "$LEX"
+	write-pyguess-config "$DATADIR" "$LEX" "$REFDIR"
 
 	# This is what will come out of this phase:
 	echo -n "" > "data/${LEX}.all.matchable.phraseparts"
@@ -66,14 +74,9 @@ main-manysets ()
 			cd "$DATADIR"
 			
 			guess-set "$set" "$CALL_SETPART" 4
-			
 			rejoin-and-detok "$set"
-			
-			if [ ! -z "$REFDIR" ]; then
-				try-to-calc-bleu $set $REFDIR
-			fi
-			
-			package-result $set $SBMTSYSTEM
+			try-to-calc-bleu "$set" "$REFDIR"
+			package-result   "$set" "$SBMTSYSTEM" "$REFDIR"
 		EOT
 		
 		$CALL_SET "${set}.${SBMTSYSTEM#isi-sbmt-}.sh" && rm "${set}.${SBMTSYSTEM#isi-sbmt-}.sh"
@@ -98,7 +101,7 @@ main-singlefile ()
 	DATADIR="$(mktemp -d)"
 	move-into-fresh-datadir "$DATADIR" "$STATICDATADIR"
 
-	write-pyguess-config "$DATADIR" "$LEX"
+	write-pyguess-config "$DATADIR" "$LEX" "$REFDIR"
 
 	cp "${SINGLEINFILE}" data/tmpset.sbmt.oov
 
@@ -154,12 +157,14 @@ move-into-fresh-datadir ()
 	mkdir data
 	mkdir inputdata
 	ln -s "${STATICDATADIR}" staticdata
+	mkdir outputdata
 }
 
 write-pyguess-config ()
 {
 	DATADIR="$(check-argument "write-pyguess-config" "1" "$1" "DATADIR")"
 	    LEX="$(check-argument "write-pyguess-config" "2" "$2" "LEXICON")"
+	 REFDIR="$(check-argument "write-pyguess-config" "3" "$3" "REFDIR")"
 
 	cat > pyguess.config <<- EOT
 	{
@@ -168,7 +173,7 @@ write-pyguess-config ()
 		"global-files": {
 			"lexicon":         "$DATADIR/staticdata/${LEX}",
 			"allmatches":      "$DATADIR/data/${LEX}.fullmorfmatches.serial",
-			"train-target":    "$DATADIR/staticdata/train.target.agile",
+			"train-target":    "$REFDIR/extracted/train.target.agile",
 			"leidos-unigrams": "$DATADIR/staticdata/leidos_unigrams",
 			"grammar":         "$DATADIR/staticdata/grammar.uig-v04.txt",
 			"pertainyms":      "$DATADIR/staticdata/english.pertainyms.txt"
@@ -365,13 +370,13 @@ rejoin-and-detok ()
 	# Also produce a dictionary
 	paste data/${set}.sbmt.oov data/${set}.sbmt.oov.guesses.1best.hyp | \
 		LC_COLLATE='UTF-8' sort -u \
-		> set-${set}.guesses.dict
+		> data/set-${set}.guesses.dict
 	
 	# Join into one big dictionary
-	rm -f all.guesses.dict
-	cat *.guesses.dict | \
+	rm -f outputdata/all.guesses.dict
+	cat data/*.guesses.dict | \
 		LC_COLLATE='UTF-8' sort -u \
-		> all.guesses.dict
+		> outputdata/all.guesses.dict
 }
 
 try-to-calc-bleu ()
@@ -406,13 +411,14 @@ package-result ()
 {
 	       set="$(check-argument "package-result" "1" "$1" "SET")"
 	SBMTSYSTEM="$(check-argument "package-result" "2" "$2" "SBMTSYSTEM name")"
+	    REFDIR="$(check-argument "package-result" "3" "$3" "REFDIR")"
 	
 	if [ ! -s "/home/rcf-40/jonmay/LE/mt2/v4/scripts/packagesbmt.sh" ]; then
 		echo "packagesbmt.sh wasn't found, likely we are not on HPC? Skipping packaging for set $set." >&2
 		return
 	fi
 	
-	ALLPACKS="$(ls -1 staticdata/package/elisa.*-eng.${set}.y?r?.*.xml.gz)"
+	ALLPACKS="$(ls -1 "$REFDIR"/elisa.*-eng.${set}.y?r?.*.xml.gz)"
 	if [ $(echo "$ALLPACKS" | wc -l) -gt 1 ]; then
 		echo "Too many target packs for set ${set}, can't determine language code. Not building ELISA package." >&2
 		return
@@ -422,15 +428,15 @@ package-result ()
 		return
 	fi
 	
-	LANGPAIR=${ALLPACKS#staticdata/package/elisa.}
+	LANGPAIR=${ALLPACKS#$REFDIR/elisa.}
 	LANGPAIR=${LANGPAIR%.${set}.y?r?.*.xml.gz}
 	
-	SETDESCRIPTOR=${ALLPACKS#staticdata/package/elisa.*-eng.${set}.}
+	SETDESCRIPTOR=${ALLPACKS#$REFDIR/elisa.*-eng.${set}.}
 	SETDESCRIPTOR=${SETDESCRIPTOR%.*.xml.gz}
 	
 	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh \
 		data/${set}.sbmt.guessed.detok \
-		staticdata/package/extracted/${set}.source.orig \
-		staticdata/package/elisa.${LANGPAIR}.${set}.${SETDESCRIPTOR}.*.xml.gz \
-		${SBMTSYSTEM}-guess.${LANGPAIR}.${set}.${SETDESCRIPTOR}.v1.xml.gz
+		"$REFDIR"/extracted/${set}.source.orig \
+		"$REFDIR"/elisa.${LANGPAIR}.${set}.${SETDESCRIPTOR}.*.xml.gz \
+		outputdata/${SBMTSYSTEM}-guess.${LANGPAIR}.${set}.${SETDESCRIPTOR}.v1.xml.gz
 }

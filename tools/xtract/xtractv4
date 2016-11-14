@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+import xml.sax
+import sys
+import re
+#import unicodedata
+name = sys.argv[1]
+
+outfiles = [ ('LRLP_TOKENIZED_SOURCE', '%s.source.lrlp' % name, 'ORIG_RAW_SOURCE', 'SEGMENT')
+           , ('CDEC_TOKENIZED_SOURCE', '%s.source.cdec' % name, 'ORIG_RAW_SOURCE', 'SEGMENT')
+           , ('ORIG_RAW_SOURCE', '%s.source.orig' % name, None,'SEGMENT')
+           , ('LRLP_TOKENIZED_TARGET', '%s.target.lrlp' % name, 'ORIG_RAW_TARGET','SEGMENT')
+           , ('ORIG_RAW_TARGET', '%s.target.orig' % name, None,'SEGMENT')
+           , ('AGILE_TOKENIZED_TARGET', '%s.target.agile' % name, 'ORIG_RAW_TARGET','SEGMENT')
+           , ('FULL_ID_SOURCE', '%s.guid' % name, None,'SEGMENT')
+           , ('GENRE', '%s.genre' % name, None,'DOCUMENT')
+           , ('PROVENANCE', '%s.prov' % name, None,'DOCUMENT')
+           ]
+
+
+def defaultstr(x,y):
+    if x != '':
+        return x
+    else:
+        return y
+
+
+def makeoutfilemap():
+    b = {}
+    for (name,filename,backupname,scope) in outfiles:
+        b[name] = { 'filename': filename, 'file':None, 'backup': backupname, 'data': '', 'scope': scope }
+    return b
+
+class SaxHandler(xml.sax.ContentHandler):
+    def initmaps(self,scope):
+        noscope = True
+        for x,y in self.mp.iteritems():
+            if y['scope'] == scope:
+                y['data'] = unicode()
+                noscope = False
+        if not noscope:
+            self.line = unicode()
+    def __init__(self):
+        xml.sax.ContentHandler.__init__(self)
+        self.mp = makeoutfilemap()
+        
+        self.curr = unicode()
+        self.line = unicode()
+        
+    def emptymap(self):
+     try:
+        for x,y in self.mp.iteritems():
+            if y['data'] is not None:
+                y['data'] = u' '.join(y['data'].strip().split()).strip() # normalization of space/newlines 
+        for x,y in self.mp.iteritems():
+            if len(y['data']) == 0:
+                if y['file'] is None:
+                    continue
+                if len(y['backup']) != 0 and y['backup'] is not None:
+                    print >> sys.stderr, "whats this: ", self.mp[y['backup']]['data'].encode('utf-8')
+                    y['data'] = self.mp[y['backup']]['data']
+                    print >> sys.stderr, x, '-->', y['backup']
+            if len(y['data']) == 0:
+                print >> sys.stderr, x, ':', self.line.encode('utf-8'), 'skipped'
+                return True
+            if y['file'] is None:
+                y['file'] = open(y['filename'],'w')
+        return False
+     except:
+        print self.mp
+        print x
+        print y
+        raise
+
+                                                
+    def endElement(self,name):
+        if name == 'SEGMENT' and (not self.emptymap()):
+            for x,y in self.mp.iteritems():
+                if y['file'] is not None:
+                    y['file'].write(y['data'].encode('utf-8'))
+                    y['file'].write('\n')
+
+        
+    def startElement(self,name, attrs):
+        self.curr = name
+        self.initmaps(name)
+    
+    def characters(self,data):
+        if self.curr == 'FULL_ID_SOURCE':
+            self.line += data
+
+        if self.curr in self.mp:
+            #print >> sys.stderr, type(data)
+            #print >> sys.stderr, data
+            #k = '' + data
+            #print >> sys.stderr, type(self.mp[self.curr]['data']), self.mp[self.curr]['data']
+            self.mp[self.curr]['data'] += data#.replace(u"\u00A0", " ")
+p = xml.sax.make_parser()
+p.setContentHandler(SaxHandler())
+
+for line in sys.stdin:
+    p.feed(line)
+p.close()
+

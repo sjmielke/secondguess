@@ -48,21 +48,24 @@ Your "static data" directory must contain the following files with these exact n
 /home/nlg-05/sjm_445/pyguess/run.system.sh \
 	/home/nlg-02/pust/elisa-trial/isi-sbmt-v5-uzb \
 	"dev test syscomb domain domain2 eval" \
-	__staticdata \
+	/home/nlg-05/sjm_445/uyghur/on_top_of/__staticdata \
 	guessing_input_lexicon.v14 \
-	/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/
+	/home/nlg-05/sjm_445/uyghur/elisa.il3.package.y1r2.v1
 ```
-Run in the directory where you want to store all resulting data. The script will create a folder with the system name (`isi-sbmt-v5-uzb` in this case) and store all results (finished ELISA packages and guess-dictionaries for each set) there.
+Run in the directory where you want to store all resulting data. The script will create a folder with the system name (`isi-sbmt-v5-uzb` in this case) and store all results (finished ELISA packages and guess-dictionaries for each set) in a `outputdata` subfolder.
+
+The references directory is expected to hold all `elisa-...set...xml.gz` files from the package. If it does not yet contain the `xtract`ed versions of all files, these will be created, so make sure you're allowed to write there!
 
 ### `run.singlefile.sh`
 
-`bash run.singlefile.sh INFILE STATICDATAPATH LEXICONNAME`, e.g.:
+`bash run.singlefile.sh INFILE STATICDATAPATH LEXICONNAME REFERENCES`, e.g.:
 
 ```
 /home/nlg-05/sjm_445/pyguess/run.system.sh \
 	some.oovs.txt \
 	/home/nlg-05/sjm_445/uyghur/on_top_of/__staticdata \
 	guessing_input_lexicon.v14
+	/home/nlg-05/sjm_445/uyghur/elisa.il3.package.y1r2.v1
 ```
 Run anywhere. Will create `$INFILE.guessed.1best.hyp` and `$INFILE.guessed.nbest.json` (in the same folder as `$INFILE`).
 

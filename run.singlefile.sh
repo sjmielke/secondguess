@@ -5,9 +5,10 @@ PYGUESSDIR="$(dirname "$(readlink -f "$0")")"
 # This is where the heavy lifting ~happens~ is defined
 source $PYGUESSDIR/run.functions.sh
 
-       INFILE="$1"
-STATICDATADIR="$2"
-          LEX="$3"
+       INFILE="$(check-argument "run.singlefile.sh" "1" "$1" "INFILE")"
+STATICDATADIR="$(check-argument "run.singlefile.sh" "2" "$2" "STATICDATADIR")"
+          LEX="$(check-argument "run.singlefile.sh" "3" "$3" "LEX")"
+       REFDIR="$(check-argument "run.singlefile.sh" "4" "$4" "REFDIR")"
 
 MYTMPDIR="" # assume standard
 
@@ -17,3 +18,4 @@ main-singlefile "$INFILE" \
   bash \
   bash \
   "$MYTMPDIR"
+	"$REFDIR"

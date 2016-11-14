@@ -12,11 +12,7 @@ source $PYGUESSDIR/run.functions.sh
          SETS="$(check-argument "run.system.sh" "2" "$2" "SETS list")"
 STATICDATADIR="$(check-argument "run.system.sh" "3" "$(readlink -f "$3")" "STATICDATA dir")"
       LEXICON="$(check-argument "run.system.sh" "4" "$4" "LEXICON")"
-       REFDIR="$5"
-
-if [ -z "$REFDIR" ]; then
-	echo 'No REFDIR ($5) specified, will skip BLEU calculation for all sets.' >&2
-fi
+       REFDIR="$(check-argument "run.system.sh" "5" "$5" "REFDIR containing elisa-...set...xml.gz")"
 
 # Full initial call for each system (has to survive everyting); used here at the bottom!
    CALL_SYSTEM="qsub -q isi -l walltime=30:00:00 -l nodes=1:quadcore:ppn=4"
