@@ -30,7 +30,7 @@ Your "static data" directory must contain the following files with these exact n
 | Ulf's grammar (uig-specific, sorry) | `grammar.uig-v04.txt` |
 | Ulf's pertainym list | `english.pertainyms.txt` |
 | binary Morfessor model | `binary-baseline-model` |
-| ELISA packages (used for ELISA package output) | `package/elisa.*-eng.${set}.y1r1.*.xml.gz` |
+| ELISA packages (used for ELISA package output) | `package/elisa.*-eng.${set}.y?r?.*.xml.gz` |
 
 ### Things that depend on the ISI HPC cluster:
 
@@ -52,7 +52,7 @@ Your "static data" directory must contain the following files with these exact n
 	guessing_input_lexicon.v14 \
 	/home/nlg-02/pust/elisa-trial/il3-eng-eval-2016-07-06/data/
 ```
-Run in the directory where you want to store all resulting data. The script will create a folder with the system name (`isi-sbmt-v5-uzb` in this case) and store all stuff there. All results including finished ELISA packages will be in the `data` subfolder.
+Run in the directory where you want to store all resulting data. The script will create a folder with the system name (`isi-sbmt-v5-uzb` in this case) and store all results (finished ELISA packages and guess-dictionaries for each set) there.
 
 ### `run.singlefile.sh`
 

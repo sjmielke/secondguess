@@ -361,6 +361,17 @@ rejoin-and-detok ()
 
 	detok data/${set}.sbmt.guessed.tok
 	detok data/${set}.sbmt.unguessed.tok
+	
+	# Also produce a dictionary
+	paste data/${set}.sbmt.oov data/${set}.sbmt.oov.guesses.1best.hyp | \
+		LC_COLLATE='UTF-8' sort -u \
+		> set-${set}.guesses.dict
+	
+	# Join into one big dictionary
+	rm -f all.guesses.dict
+	cat *.guesses.dict | \
+		LC_COLLATE='UTF-8' sort -u \
+		> all.guesses.dict
 }
 
 try-to-calc-bleu ()
@@ -401,17 +412,25 @@ package-result ()
 		return
 	fi
 	
-	ALLPACKS="$(ls -1 staticdata/package/elisa.*-eng.${set}.y1r1.*.xml.gz)"
+	ALLPACKS="$(ls -1 staticdata/package/elisa.*-eng.${set}.y?r?.*.xml.gz)"
 	if [ $(echo "$ALLPACKS" | wc -l) -gt 1 ]; then
 		echo "Too many target packs for set ${set}, can't determine language code. Not building ELISA package." >&2
 		return
 	fi
+	if [ $(echo "$ALLPACKS" | wc -l) -lt 1 ]; then
+		echo "No target packs for set ${set} found! Not building ELISA package." >&2
+		return
+	fi
+	
 	LANGPAIR=${ALLPACKS#staticdata/package/elisa.}
-	LANGPAIR=${LANGPAIR%.${set}.y1r1.*.xml.gz}
+	LANGPAIR=${LANGPAIR%.${set}.y?r?.*.xml.gz}
+	
+	SETDESCRIPTOR=${ALLPACKS#staticdata/package/elisa.*-eng.${set}.}
+	SETDESCRIPTOR=${SETDESCRIPTOR%.*.xml.gz}
 	
 	~jonmay//LE/mt2/v4/scripts/packagesbmt.sh \
 		data/${set}.sbmt.guessed.detok \
 		staticdata/package/extracted/${set}.source.orig \
-		staticdata/package/elisa.${LANGPAIR}.${set}.y1r1.*.xml.gz \
-		data/${SBMTSYSTEM}-guess.${LANGPAIR}.${set}.y1r1.v1.xml.gz
+		staticdata/package/elisa.${LANGPAIR}.${set}.${SETDESCRIPTOR}.*.xml.gz \
+		${SBMTSYSTEM}-guess.${LANGPAIR}.${set}.${SETDESCRIPTOR}.v1.xml.gz
 }
