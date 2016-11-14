@@ -375,7 +375,8 @@ rejoin-and-detok ()
 	# Join into one big dictionary
 	rm -f outputdata/all.guesses.dict
 	cat data/*.guesses.dict | \
-		LC_COLLATE='UTF-8' sort -u \
+		LC_COLLATE='UTF-8' sort -u | \
+		grep -E -v '^(.*)	\1$'
 		> outputdata/all.guesses.dict
 }
 
@@ -392,7 +393,7 @@ try-to-calc-bleu ()
 	fi
 	
 	# Calculate BLEU scores
-	reffile=${REFDIR}/$set.target.orig
+	reffile=${REFDIR}/extracted/$set.target.orig
 	if [ -s $reffile ]; then
 		date >> data/${set}.bleu_results.txt
 		for lc in 0 1; do
