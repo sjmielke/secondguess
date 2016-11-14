@@ -52,8 +52,8 @@ for set in $SETS; do
 		foundsets="$foundsets $set"
 	else
 		shopt -s extglob # to do the +(0-9) stuff
-		SET_UNCMPR="$(ls -1v $syspath/decode-dev-${set}.+([0-9])/nbest.raw    2>/dev/null | tail -n 1)"
-		SET_GZCMPR="$(ls -1v $syspath/decode-dev-${set}.+([0-9])/nbest.raw.gz 2>/dev/null | tail -n 1)"
+		SET_UNCMPR="$(ls -1v $syspath/decode-*-${set}.+([0-9])/nbest.raw    2>/dev/null | tail -n 1)"
+		SET_GZCMPR="$(ls -1v $syspath/decode-*-${set}.+([0-9])/nbest.raw.gz 2>/dev/null | tail -n 1)"
 		if [ -s "$SET_UNCMPR" ]; then
 			foundsets="$foundsets $(sbmtnbest2alignfile "${set}" "$SET_UNCMPR")"
 		elif [ -s "$SET_GZCMPR" ]; then
