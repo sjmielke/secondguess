@@ -26,7 +26,7 @@ main-manysets ()
 	        REFDIR="$(check-argument "main-manysets" "7" "$7" "REFDIR containing elisa-...set...xml.gz")"
 	
 	# if necessary, perform extraction
-	if [ -d "$REFDIR/extracted" ]; then
+	if [  ! -d "$REFDIR/extracted" ]; then
 		pushd "$REFDIR" > /dev/null
 		mkdir extracted
 		popd > /dev/null
