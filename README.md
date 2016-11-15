@@ -2,7 +2,7 @@
 
 Machine translation systems make many assumptions, missing a couple words that they could have translated - if only they were a little bit more lenient.
 
-This is a soft dictionary lookup solution that can post-process machine translation output to translate some of the words that were not translated. This works by splitting OOVs (out-of-vocabulary words, unknown words) into multiple parts and then performing a fuzzy lookup in the dictionary for all these parts, yielding english compounds, scoring them according to some handcrafted features and outputs the best option, as shown in these pictures from explanatory slides:
+This is a soft dictionary lookup solution that can post-process machine translation output to translate some of the words that were not translated. This works by splitting OOVs (out-of-vocabulary words, unknown words) into multiple parts and then performing a fuzzy lookup in the dictionary for all these parts, yielding english compounds, scoring them according to some handcrafted features and outputing the best option, as shown in these pictures from explanatory slides:
 
 ![architecture views](https://raw.githubusercontent.com/sjmielke/secondguess/master/architecture.png)
 
@@ -25,7 +25,6 @@ Your "static data" directory must contain the following files with these exact n
 | description | filename |
 | ----- | ----- |
 | lexicon (3-col TSV: `source [ignored] target`) | `${LEX}` |
-| training corpus, tokenized target side | `train.target.agile` |
 | leidos-unigrams (i.e. output of `sort | uniq -c | sort -nr` ) | `leidos_unigrams` |
 | Ulf's grammar (uig-specific, sorry) | `grammar.uig-v04.txt` |
 | Ulf's pertainym list | `english.pertainyms.txt` |
